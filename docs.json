@@ -1,0 +1,107 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "AdRecon",
+  "theme": "almond",
+  "colors": {
+    "primary": "#7C3AED",
+    "light": "#A78BFA",
+    "dark": "#5B21B6"
+  },
+  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/MatthewSabia1/AdRecon"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/MatthewSabia1/AdRecon"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "architecture"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/ad-feed",
+              "features/saved-ads",
+              "features/projects",
+              "features/page-ripper",
+              "features/filters"
+            ]
+          },
+          {
+            "group": "User Management",
+            "pages": [
+              "user-management/authentication",
+              "user-management/admin-dashboard",
+              "user-management/profile"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/fanbasis",
+              "integrations/supabase"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/overview",
+              "api/ad-media",
+              "api/download-page",
+              "api/admin-users",
+              "api/fanbasis"
+            ]
+          },
+          {
+            "group": "Database",
+            "pages": [
+              "database/schema",
+              "database/feeds",
+              "database/security"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Deployment",
+        "groups": [
+          {
+            "group": "Setup",
+            "pages": [
+              "deployment/local-development",
+              "deployment/environment-variables",
+              "deployment/vercel"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "deployment/build-process",
+              "deployment/monitoring"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

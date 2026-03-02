@@ -1,0 +1,223 @@
+---
+title: Build Process
+description: Understand the AdRecon build pipeline from npm run build to production deployment
+---
+
+AdRecon uses a custom build orchestration script (`build-site.mjs`) that wraps Vite's production bundler to create dual SPA entry points for flexible routing.
+
+## Build Architecture
+
+The build process produces a dual-entry SPA structure:
+
+- `dist/index.html` — Root entry point served at `/`
+- `dist/app/index.html` — App entry point served at `/app` and all SPA routes
+- `dist/app/assets/` — Bundled JS, CSS, fonts, and images
+
+Both HTML files are **identical** — the root index mirrors the app shell to ensure first-time visitors immediately see the auth gate.
+
+## Build Command
+
+<CodeGroup>
+```bash Local Build
+npm run build
+```
+
+```bash Clean Build
+npm run clean && npm run build
+```
+</CodeGroup>
+
+## Build Pipeline
+
+The build process follows these sequential steps:
+
+<Steps>
+  <Step title="Clean Output Directory">
+    Remove the entire `dist/` directory to ensure no stale artifacts remain.
+
+    ```javascript
+    await rm(distDir, { recursive: true, force: true });
+    ```
+
+    This happens in `scripts/build-site.mjs:33`
+  </Step>
+
+  <Step title="Vite Production Build">
+    Run `npm run build:app` which invokes `vite build` with production optimizations.
+
+    ```javascript
+    await run('npm', ['run', 'build:app']);
+    ```
+
+    This compiles:
+    - TypeScript → JavaScript (ES2020)
+    - React JSX → optimized JS
+    - Tailwind CSS → minified styles
+    - Asset imports → content-hashed filenames
+
+    Output: `dist/app/index.html` + `dist/app/assets/*`
+  </Step>
+
+  <Step title="Mirror SPA Shell at Root">
+    Copy `dist/app/index.html` to `dist/index.html` so `/` and `/app` share the same auth-first entry point.
+
+    ```javascript
+    const appHtml = await readFile(spaIndexOutput, 'utf8');
+    await writeFile(siteIndexOutput, appHtml, 'utf8');
+    ```
+
+    This ensures first-time visitors hitting `/` immediately see the authentication UI instead of a 404.
+  </Step>
+
+  <Step title="Copy Favicon">
+    Copy `favicon.ico` to `dist/favicon.ico` if present (fails silently if missing).
+
+    ```javascript
+    try {
+      await copyFile(faviconSource, path.join(distDir, 'favicon.ico'));
+    } catch {
+      // No-op if favicon is absent.
+    }
+    ```
+  </Step>
+</Steps>
+
+## Vite Configuration
+
+The build is controlled by `vite.config.ts` which handles environment-aware asset paths and code splitting.
+
+### Base Path Strategy
+
+```typescript
+base: command === 'serve' ? '/' : '/app/',
+```
+
+- **Development (`npm run dev`)**: Base path is `/` so local routes like `/admin` and `/profile` resolve correctly
+- **Production (`npm run build`)**: Base path is `/app/` because Vercel serves the SPA from `/app/index.html` via rewrites
+
+### Code Splitting
+
+Vite automatically splits vendor dependencies into separate chunks for optimal caching:
+
+<CodeGroup>
+```javascript React Vendor Bundle
+if (id.includes('/react/') || id.includes('/react-dom/')) {
+  return 'react-vendor';
+}
+```
+
+```javascript Supabase Vendor Bundle
+if (id.includes('/@supabase/')) {
+  return 'supabase-vendor';
+}
+```
+
+```javascript Motion Vendor Bundle
+if (id.includes('/framer-motion/')) {
+  return 'motion-vendor';
+}
+```
+
+```javascript Icons Vendor Bundle
+if (id.includes('/lucide-react/')) {
+  return 'icons-vendor';
+}
+```
+</CodeGroup>
+
+This strategy ensures:
+- Core framework code (React) loads first
+- Heavy animation library (Framer Motion) is isolated
+- Icon library doesn't pollute main bundle
+- Browser can cache vendor chunks independently
+
+## Output Structure
+
+After `npm run build` completes, the `dist/` directory contains:
+
+```
+dist/
+├── index.html              # Root SPA entry (mirrors app/index.html)
+├── favicon.ico             # Site favicon
+└── app/
+    ├── index.html          # App SPA entry
+    └── assets/
+        ├── index-[hash].js         # Main application bundle
+        ├── react-vendor-[hash].js  # React + ReactDOM
+        ├── supabase-vendor-[hash].js
+        ├── motion-vendor-[hash].js
+        ├── icons-vendor-[hash].js
+        ├── index-[hash].css        # Compiled Tailwind styles
+        └── [assets]                # Images, fonts, etc.
+```
+
+<Note>
+  Content hashes in filenames (e.g., `index-a3b2c1d4.js`) enable aggressive long-term caching — browsers only re-download files when content changes.
+</Note>
+
+## Production Optimizations
+
+Vite applies these optimizations automatically during `npm run build`:
+
+- **Minification**: JS via esbuild, CSS via Lightning CSS
+- **Tree shaking**: Dead code elimination
+- **Asset inlining**: Small images/fonts become base64 data URIs
+- **CSS extraction**: Styles extracted into separate `.css` files
+- **Compression hints**: Brotli/gzip-friendly output structure
+
+## Vercel Build Configuration
+
+The `vercel.json` file controls how Vercel builds and deploys the app:
+
+```json
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "ignoreCommand": "if [ -n \"$VERCEL_GIT_COMMIT_REF\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"staging\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ]; then echo \"Skipping branch $VERCEL_GIT_COMMIT_REF (allowed: staging, main)\"; exit 0; fi; exit 1"
+}
+```
+
+<Info>
+  The `ignoreCommand` prevents Vercel from building non-production branches — only `staging` and `main` trigger deployments.
+</Info>
+
+## Troubleshooting
+
+### Build fails with TypeScript errors
+
+Run type checking before building:
+
+```bash
+npm run lint
+```
+
+This runs `tsc --noEmit` to surface type errors without attempting a full build.
+
+### Assets fail to load in production
+
+Verify the Vite `base` path matches your deployment routing:
+- Local dev should use `base: '/'`
+- Production should use `base: '/app/'` to match Vercel's SPA rewrites
+
+### Build produces stale artifacts
+
+Run a clean build to remove cached output:
+
+```bash
+npm run clean && npm run build
+```
+
+### "Module not found" errors after build
+
+Check the `resolve.alias` configuration in `vite.config.ts` — the `@` alias must point to `src/` for imports like `@/lib/supabase`.
+
+## Build Performance
+
+Typical build times:
+- **Clean build**: 8-12 seconds
+- **Incremental build**: 3-5 seconds (Vite cache enabled)
+- **Vercel production build**: 15-25 seconds (includes dependency installation)
+
+<Note>
+  Vercel caches `node_modules` between deployments, significantly reducing build time for commits that don't change dependencies.
+</Note>

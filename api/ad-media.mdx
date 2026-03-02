@@ -1,0 +1,268 @@
+---
+title: 'GET /api/ad-media'
+description: 'Proxy Facebook and Instagram media assets with CORS bypass and caching'
+---
+
+## Overview
+
+The `/api/ad-media` endpoint proxies media assets (images and videos) from Facebook and Instagram CDNs. This solves CORS restrictions and provides consistent caching for ad creative assets.
+
+<Note>
+This endpoint is **unauthenticated** and designed for high-volume usage with aggressive caching.
+</Note>
+
+## Endpoint
+
+```
+GET /api/ad-media
+HEAD /api/ad-media
+```
+
+## Request Parameters
+
+<ParamField query="src" type="string" required>
+  Full URL of the media asset to proxy. Must be from an allowed host.
+  
+  **Allowed hosts:**
+  - `*.fbcdn.net`
+  - `*.facebook.com`
+  - `*.cdninstagram.com`
+</ParamField>
+
+<ParamField query="kind" type="string" default="image">
+  Expected media type. Used for validation and content negotiation.
+  
+  **Options:**
+  - `image` — Images only (PNG, JPEG, WebP, AVIF, GIF, etc.)
+  - `video` — Videos and streaming formats (MP4, M3U8, DASH, etc.)
+  - `auto` — Accept both images and videos
+</ParamField>
+
+## Response
+
+### Success (200 OK)
+
+Returns the media asset bytes with appropriate headers:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: image/jpeg
+Content-Length: 245678
+Cache-Control: public, max-age=1800, s-maxage=21600
+ETag: "abc123"
+Last-Modified: Mon, 01 Mar 2026 12:00:00 GMT
+```
+
+### Success (206 Partial Content)
+
+Supports HTTP range requests for video streaming:
+
+```http
+HTTP/1.1 206 Partial Content
+Content-Type: video/mp4
+Content-Range: bytes 0-1048575/4567890
+Accept-Ranges: bytes
+Cache-Control: public, max-age=600, s-maxage=3600
+```
+
+### Pass-Through Headers
+
+The following headers are passed through from upstream:
+
+- `Content-Type`
+- `Content-Range`
+- `Accept-Ranges`
+- `ETag`
+- `Last-Modified`
+- `Vary`
+- `Cache-Control`
+
+<Warning>
+If upstream omits `Cache-Control`, the proxy applies fallback caching:
+- **Images**: `public, max-age=1800, s-maxage=21600` (30 min / 6 hours)
+- **Videos**: `public, max-age=600, s-maxage=3600` (10 min / 1 hour)
+</Warning>
+
+## Error Codes
+
+| Status | Condition | Response Body |
+|--------|-----------|---------------|
+| `400` | Missing `src` parameter | `{"error": "Missing src query parameter."}` |
+| `400` | Invalid URL format | `{"error": "Invalid src URL."}` |
+| `400` | Invalid `kind` value | `{"error": "Invalid media kind. Use image, video, or auto."}` |
+| `400` | Unsupported protocol (non-HTTP/HTTPS) | `{"error": "Unsupported URL protocol."}` |
+| `403` | Host not in allowlist | `{"error": "Host is not allowed."}` |
+| `405` | Method not GET/HEAD | `{"error": "Method not allowed."}` |
+| `415` | Content-Type mismatch | `{"error": "Upstream response is not a video."}` |
+| `502` | Upstream fetch failed | `{"error": "Failed to fetch media."}` |
+| `504` | Request timeout (15s) | `{"error": "Timed out fetching media."}` |
+
+## Content-Type Validation
+
+The endpoint validates that upstream `Content-Type` matches the requested `kind`:
+
+### Image Validation (`kind=image`)
+
+Accepts:
+- `image/*` (JPEG, PNG, WebP, AVIF, GIF, BMP, etc.)
+- `application/octet-stream` if URL ends with image extension
+
+### Video Validation (`kind=video`)
+
+Accepts:
+- `video/*` (MP4, WebM, etc.)
+- Streaming formats: `application/vnd.apple.mpegurl`, `application/x-mpegurl`, `application/dash+xml`
+- `application/octet-stream` if URL ends with video extension (`.mp4`, `.m4v`, `.mov`, `.webm`, `.m3u8`, `.mpd`)
+
+### Auto Validation (`kind=auto`)
+
+Accepts any image or video content type.
+
+## Examples
+
+### Proxy an Image
+
+<CodeGroup>
+
+```javascript Fetch API
+const imageUrl = 'https://scontent.xx.fbcdn.net/v/t39.35426-6/123456789_1234567890123456_1234567890123456789_n.jpg'
+
+const proxyUrl = `/api/ad-media?${new URLSearchParams({
+  src: imageUrl,
+  kind: 'image'
+})}`
+
+const response = await fetch(proxyUrl)
+const blob = await response.blob()
+const objectUrl = URL.createObjectURL(blob)
+
+// Use in img tag
+document.querySelector('img').src = objectUrl
+```
+
+```html Direct Image Tag
+<img 
+  src="/api/ad-media?src=https%3A%2F%2Fscontent.xx.fbcdn.net%2Fv%2Ft39.35426-6%2F123456789.jpg&kind=image" 
+  alt="Ad creative"
+/>
+```
+
+```bash cURL
+curl -I 'https://your-domain.vercel.app/api/ad-media?src=https://scontent.xx.fbcdn.net/v/t39.35426-6/123456789.jpg&kind=image'
+```
+
+</CodeGroup>
+
+### Proxy a Video
+
+<CodeGroup>
+
+```javascript Video Element
+const videoUrl = 'https://scontent.xx.fbcdn.net/v/t39.25447-2/123456789_1234567890123456_1234567890123456789_n.mp4'
+
+const proxyUrl = `/api/ad-media?${new URLSearchParams({
+  src: videoUrl,
+  kind: 'video'
+})}`
+
+const videoElement = document.querySelector('video')
+videoElement.src = proxyUrl
+```
+
+```html Video Tag with Range Support
+<video controls>
+  <source 
+    src="/api/ad-media?src=https%3A%2F%2Fscontent.xx.fbcdn.net%2Fv%2Ft39.25447-2%2F123456789.mp4&kind=video" 
+    type="video/mp4"
+  />
+</video>
+```
+
+</CodeGroup>
+
+### Handle Errors
+
+```javascript Error Handling
+async function loadProxiedMedia(src, kind = 'image') {
+  const url = `/api/ad-media?${new URLSearchParams({ src, kind })}`
+  
+  const response = await fetch(url)
+  
+  if (!response.ok) {
+    const error = await response.json()
+    
+    if (response.status === 403) {
+      console.error('Host not allowed:', src)
+    } else if (response.status === 504) {
+      console.error('Timeout fetching media')
+    } else if (response.status === 415) {
+      console.error('Content type mismatch')
+    } else {
+      console.error('Media proxy error:', error.error)
+    }
+    
+    throw new Error(error.error)
+  }
+  
+  return response.blob()
+}
+```
+
+## Implementation Details
+
+### Request Timeout
+
+Upstream requests timeout after **15 seconds** (source:api/ad-media.js:4).
+
+### User-Agent
+
+Requests to upstream use a custom User-Agent:
+
+```
+Mozilla/5.0 (compatible; AdReconMediaProxy/1.0; +https://adrecon.io)
+```
+
+### Referer Header
+
+All upstream requests include:
+
+```http
+Referer: https://www.facebook.com/
+```
+
+This ensures Facebook CDN compatibility (source:api/ad-media.js:139).
+
+### Accept-Encoding
+
+The proxy requests `Accept-Encoding: identity` to prevent compression mismatches when proxying bytes to browsers (source:api/ad-media.js:137).
+
+### Range Request Support
+
+Client `Range` headers are passed through to upstream for video streaming (source:api/ad-media.js:142-144).
+
+## Best Practices
+
+<CardGroup cols={2}>
+
+<Card title="Use kind parameter" icon="check">
+  Always specify `kind=video` for videos to enable proper streaming format validation
+</Card>
+
+<Card title="Leverage caching" icon="bolt">
+  The endpoint is designed for aggressive caching — use a CDN in front for best performance
+</Card>
+
+<Card title="Handle timeouts" icon="clock">
+  Implement fallbacks for 504 errors, especially for large video files
+</Card>
+
+<Card title="Validate hosts" icon="shield">
+  Only Facebook/Instagram CDN URLs are supported — validate before proxying
+</Card>
+
+</CardGroup>
+
+## Related Endpoints
+
+- [Overview](/api/overview) — API authentication and error handling
+- [Page Ripper](/api/download-page) — Capture landing pages with embedded media

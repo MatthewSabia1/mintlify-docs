@@ -1,0 +1,273 @@
+---
+title: Feed Views
+description: Normalized feed views for ad browsing, saved ads, and project-filtered ads
+---
+
+AdRecon exposes three feed views that normalize raw ad data and scope it to user context. All views use `security_invoker = true` so RLS policies apply based on the calling user.
+
+## ads_feed_v2
+
+Primary feed view. Normalizes `apify_ads_raw` into a clean ad schema with computed niche, network, status, and days running.
+
+### Purpose
+
+- Powers the "All Ads" scope in the dashboard
+- Applies classification functions (`classify_niche`, `classify_network`) to raw ad text
+- Computes `days_running` from `start_date` or `updated_at`
+- Computes `creative_count` from media arrays and carousel cards
+- Provides fallback values for missing fields
+
+### Columns
+
+<ResponseField name="ad_archive_id" type="text">
+  Meta Ad Library archive ID.
+</ResponseField>
+
+<ResponseField name="advertiser" type="text">
+  Coalesced from `page_name`, `snapshot.page_name`, `raw.page_name`. Defaults to `"Unknown Advertiser"`.
+</ResponseField>
+
+<ResponseField name="offer_name" type="text">
+  Coalesced from `snapshot.title`, `raw.snapshot.title`, `raw.ad_title`, `page_name`. Defaults to `"Ad {ad_archive_id}"`.
+</ResponseField>
+
+<ResponseField name="ad_copy" type="text">
+  Coalesced from `snapshot.body.text`, `snapshot.body`, `raw.snapshot.body.text`, `raw.ad_creative_body`, `raw.ad_copy`, `raw.description`. Defaults to empty string.
+</ResponseField>
+
+<ResponseField name="niche" type="text">
+  Computed via `classify_niche(classification_text)`. Values: `Health`, `Wealth`, `BizOpp`, `Relationship`, `Survival`, `Other`.
+</ResponseField>
+
+<ResponseField name="network" type="text">
+  Computed via `classify_network(destination_url, classification_text)`. Values: `ClickBank`, `Digistore24`, `BuyGoods`, `MaxWeb`, `Other`.
+</ResponseField>
+
+<ResponseField name="days_running" type="int">
+  Computed as `floor((now() - coalesce(start_date, updated_at)) / 86400)`. Minimum 0.
+</ResponseField>
+
+<ResponseField name="status" type="text">
+  `"Active"` if `is_active` is true or null, `"Inactive"` if false.
+</ResponseField>
+
+<ResponseField name="image_url" type="text">
+  First available image from `snapshot.images[0].original_image_url`, `snapshot.cards[0].original_image_url`, `media.imageUrls[0]`, video thumbnails, or fallback placeholder.
+</ResponseField>
+
+<ResponseField name="video_url" type="text">
+  First available video from `snapshot.videos[0].video_hd_url`, `snapshot.cards[0].video_hd_url`, `media.videoUrls[0]`, or null.
+</ResponseField>
+
+<ResponseField name="start_date" type="timestamptz">
+  When the ad first went live.
+</ResponseField>
+
+<ResponseField name="destination_url" type="text">
+  Coalesced from `snapshot.link_url`, `snapshot.cards[0].link_url`, `source_url`, `ad_library_url`. Defaults to Meta Ad Library URL.
+</ResponseField>
+
+<ResponseField name="cta_text" type="text">
+  Call-to-action button text. Defaults to `"Learn More"`.
+</ResponseField>
+
+<ResponseField name="headline" type="text">
+  Coalesced from `snapshot.title`, `raw.headline`, `page_name`. Defaults to `"Untitled Ad"`.
+</ResponseField>
+
+<ResponseField name="link_description" type="text">
+  Coalesced from `snapshot.link_description`, `snapshot.cards[0].link_description`. Defaults to empty string.
+</ResponseField>
+
+<ResponseField name="ad_library_url" type="text">
+  Direct link to the ad in Meta Ad Library.
+</ResponseField>
+
+<ResponseField name="updated_at" type="timestamptz">
+  Last update timestamp from `apify_ads_raw`.
+</ResponseField>
+
+<ResponseField name="creative_count" type="int">
+  Number of creative variants. Computed as `max(1, imageUrls.length + videoUrls.length, cards.length)`.
+</ResponseField>
+
+### Normalization Logic
+
+The view uses cascading `coalesce()` to extract fields from multiple JSON paths:
+
+```sql
+coalesce(
+  nullif(a.snapshot->>'title', ''),
+  nullif(a.raw->'snapshot'->>'title', ''),
+  nullif(a.raw->>'ad_title', ''),
+  'Ad ' || a.ad_archive_id
+) as offer_name
+```
+
+This pattern:
+1. Tries `snapshot.title`
+2. Falls back to `raw.snapshot.title`
+3. Falls back to `raw.ad_title`
+4. Defaults to `"Ad {id}"` if all are null/empty
+
+### Classification Functions
+
+#### classify_niche(classification_text)
+
+Regex-based niche classification:
+
+| Pattern | Niche |
+|---------|-------|
+| `weight\|metabolism\|supplement\|health\|wellness\|fat burn\|prostate\|vision\|joint\|energy\|diet` | Health |
+| `wealth\|crypto\|bitcoin\|income\|money\|finance\|trading\|invest\|stock\|retirement\|cashflow` | Wealth |
+| `biz opp\|business opportunity\|affiliate\|make money online\|lead gen\|agency\|ecommerce\|dropship` | BizOpp |
+| `relationship\|dating\|marriage\|text him\|love\|obsession\|attract\|breakup` | Relationship |
+| `survival\|prepper\|off grid\|grid down\|emergency\|collapse\|self defense` | Survival |
+| _none match_ | Other |
+
+#### classify_network(destination_url, classification_text)
+
+Regex-based affiliate network detection:
+
+| Pattern | Network |
+|---------|----------|
+| `clickbank\|hop.clickbank.net\|clkbank` | ClickBank |
+| `digistore24\|digistore` | Digistore24 |
+| `buygoods` | BuyGoods |
+| `maxweb` | MaxWeb |
+| _none match_ | Other |
+
+Checks `destination_url` first, then `classification_text`.
+
+<Note>
+  `classification_text` is a lowercase concatenation of all text fields from `page_name`, `snapshot`, `raw`, used as input to both classifiers.
+</Note>
+
+---
+
+## user_saved_ads_feed_v1
+
+Joins `user_saved_ads` with `ads_feed_v2` to show only ads the current user has saved.
+
+### Purpose
+
+Powers the "Saved" scope in the dashboard.
+
+### Columns
+
+<ResponseField name="user_id" type="uuid">
+  The user who saved the ad. Scoped by RLS to `auth.uid()`.
+</ResponseField>
+
+<ResponseField name="*" type="all columns from ads_feed_v2">
+  All columns from `ads_feed_v2` (ad_archive_id, advertiser, offer_name, ad_copy, niche, network, days_running, status, image_url, video_url, start_date, destination_url, cta_text, headline, link_description, ad_library_url, updated_at, creative_count).
+</ResponseField>
+
+### SQL Definition
+
+```sql
+create or replace view public.user_saved_ads_feed_v1
+with (security_invoker = true)
+as
+select
+  s.user_id,
+  a.*
+from public.user_saved_ads s
+join public.ads_feed_v2 a on a.ad_archive_id = s.ad_archive_id;
+```
+
+### Filtering Behavior
+
+- Only shows ads where `user_saved_ads.user_id = auth.uid()` (enforced by RLS on `user_saved_ads`)
+- Inner join ensures only ads still present in `apify_ads_raw` are returned
+- If an ad is deleted from `apify_ads_raw`, the cascade delete removes the `user_saved_ads` row, so the ad disappears from this view
+
+---
+
+## user_project_ads_feed_v1
+
+Joins `user_saved_ad_projects` with `ads_feed_v2` to show ads in a specific project.
+
+### Purpose
+
+Powers the "Project" scope in the dashboard when a project is selected.
+
+### Columns
+
+<ResponseField name="user_id" type="uuid">
+  The user who owns the project. Scoped by RLS to `auth.uid()`.
+</ResponseField>
+
+<ResponseField name="project_id" type="uuid">
+  The project ID. Dashboard filters on this column.
+</ResponseField>
+
+<ResponseField name="*" type="all columns from ads_feed_v2">
+  All columns from `ads_feed_v2`.
+</ResponseField>
+
+### SQL Definition
+
+```sql
+create or replace view public.user_project_ads_feed_v1
+with (security_invoker = true)
+as
+select
+  p.user_id,
+  p.project_id,
+  a.*
+from public.user_saved_ad_projects p
+join public.ads_feed_v2 a on a.ad_archive_id = p.ad_archive_id;
+```
+
+### Filtering Behavior
+
+- Only shows ads where `user_saved_ad_projects.user_id = auth.uid()` (enforced by RLS)
+- Dashboard adds `project_id = <selected_project_id>` filter
+- Inner join ensures only ads still in `apify_ads_raw` are shown
+- If a project is deleted, cascade delete removes all `user_saved_ad_projects` rows, so ads disappear from this view for that project
+
+---
+
+## Feed Query Contract
+
+The frontend (`src/lib/ads.ts`) queries these views via `fetchAdsPage(params)` where `params.scope` determines the source:
+
+| Scope | View | Additional Filter |
+|-------|------|-------------------|
+| `all` | `ads_feed_v2` | None |
+| `saved` | `user_saved_ads_feed_v1` | None (RLS scopes to current user) |
+| `project` | `user_project_ads_feed_v1` | `project_id = params.projectId` |
+
+### Common Filters Applied
+
+- **Search:** OR-matches `offer_name`, `advertiser`, `ad_copy` via `ilike`
+- **Niche:** Exact match on `niche` column
+- **Network:** Exact match on `network` column
+- **Status:** Exact match on `status` column
+- **Performance Bucket:** Range filter on `days_running` (New: ≤14, Promising: ≥7, Profitable: ≥30, Proven: ≥60)
+
+### Fallback Behavior
+
+<Warning>
+  `classify_niche` and `classify_network` functions process `raw::text` via regex, which is expensive. Server-side filters on these columns can cause statement timeouts (HTTP 500).
+</Warning>
+
+When timeouts occur, the data layer:
+1. Falls back to `updatedAt desc` sort if `daysRunning` sort times out
+2. Fetches IDs without expensive filters, then applies niche/network matching client-side in JavaScript
+3. Uses ID-first retrieval with probe batches to scan and match rows incrementally
+
+See `src/lib/ads.ts:1556` (`fetchAdsPage`) for full fallback chain.
+
+---
+
+## Performance Notes
+
+- **Indexes:** The views themselves are not indexed. Queries rely on indexes on `apify_ads_raw.ad_archive_id`, `user_saved_ads(user_id, ad_archive_id)`, and `user_saved_ad_projects` composite keys.
+- **Statement timeout:** PostgREST default is 60s. Broad queries with niche/network filters can exceed this. The app uses client-side filtering fallback to handle timeouts gracefully.
+- **Pagination:** Uses PostgREST `range()` for offset-based pagination. Client-side dedup logic in `src/lib/ads.ts` removes duplicate ads by content hash.
+
+<Note>
+  `creative_count` was added in migration `20260226_add_creative_count_to_feed.sql` to support performance bucket classification. Downstream views (`user_saved_ads_feed_v1`, `user_project_ads_feed_v1`) inherit it via `a.*`.
+</Note>

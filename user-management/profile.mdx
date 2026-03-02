@@ -1,0 +1,332 @@
+---
+title: User Profile
+description: View and edit your AdRecon account profile, including display name, avatar, bio, and security settings.
+---
+
+The Profile page allows users to view their account information, update their public profile settings, and manage authentication actions like password resets.
+
+## Accessing Your Profile
+
+Navigate to `/profile` or `/app/profile` while signed in. The profile page displays your account identity, connected authentication providers, and profile settings.
+
+**Route**: `/profile` or `/app/profile`
+
+**Component**: `ProfilePage.tsx`
+
+## Account Identity
+
+The **Account Identity** card displays your core account details.
+
+### Displayed Information
+
+| Field | Description |
+|---|---|
+| **Display Name** | Your current public display name |
+| **Email** | The email address associated with your account (or "No email address") |
+| **Avatar** | Profile image preview (shows initials if no avatar URL is set) |
+| **Auth Providers** | Connected authentication methods (e.g., "email", "google") |
+| **Last Sign In** | Timestamp of your most recent sign-in |
+| **Joined** | Account creation timestamp |
+
+**Account identity section** (`ProfilePage.tsx:447-476`):
+
+```tsx
+<div className="flex items-center gap-4">
+  <div className="relative inline-flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-[#2B2B37] bg-[#141420] text-lg font-bold text-[#D8D8DE]">
+    {avatarSource ? (
+      <img
+        src={avatarSource}
+        alt="Profile avatar"
+        className="h-full w-full object-cover"
+        onError={() => setAvatarPreviewFailed(true)}
+      />
+    ) : (
+      getInitial(form.displayName || profile.email || 'U')
+    )}
+  </div>
+  <div className="min-w-0 space-y-1 text-sm">
+    <div className="text-[#F5F5F0] truncate">{profile.providers.length > 0 ? profile.providers.join(' • ') : 'Email account'}</div>
+    <div className="text-xs text-[#8C8C99] truncate">Last sign in: {formatDate(profile.lastSignInAt)}</div>
+    <div className="text-xs text-[#8C8C99] truncate">Joined: {formatDate(profile.createdAt)}</div>
+  </div>
+</div>
+```
+
+### Provider Defaults
+
+If you signed in via Google OAuth, the system caches your Google profile defaults (name and avatar). Click **Use {provider} profile defaults** to restore these values.
+
+**Provider defaults button** (`ProfilePage.tsx:498-507`):
+
+```tsx
+{profile.providerDefaults ? (
+  <button
+    type="button"
+    onClick={handleUseProviderDefaults}
+    className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-[#1A1A22] bg-[#151519] px-3 text-sm text-[#8C8C99] transition-colors hover:border-[#34D399]/30 hover:text-[#6EE7B7]"
+  >
+    <RefreshCw size={14} />
+    Use {profile.providerDefaults.provider} profile defaults
+  </button>
+) : null}
+```
+
+## Public Profile Settings
+
+The **Public profile settings** section allows you to customize how your account appears throughout AdRecon.
+
+### Editable Fields
+
+<Steps>
+  <Step title="Display Name">
+    Your public display name (max 100 characters). This is shown in the app UI and any future collaboration features.
+  </Step>
+  <Step title="Profile Image URL">
+    A direct URL to your profile avatar image. The preview updates as you type. If the image fails to load, your initials are shown instead.
+  </Step>
+  <Step title="Bio">
+    A short biography for your account (max 240 characters). The character counter updates as you type.
+  </Step>
+  <Step title="Website">
+    Your website URL (e.g., `https://your-site.com`). Displayed with a globe icon.
+  </Step>
+</Steps>
+
+### Saving Changes
+
+Click **Save changes** to update your profile. The button is disabled until you make an edit.
+
+**Save handler** (`ProfilePage.tsx:269-294`):
+
+```tsx
+const handleSave = async () => {
+  if (!profile) {
+    return;
+  }
+
+  setSaving(true);
+  setError(null);
+
+  try {
+    const updated = await updateCurrentUserProfile({
+      displayName: form.displayName,
+      avatarUrl: form.avatarUrl,
+      bio: form.bio,
+      websiteUrl: form.websiteUrl,
+    });
+    setProfile(updated);
+    setForm(buildInitialForm(updated));
+    toast.success('Profile updated successfully.');
+  } catch (err) {
+    const message = toUserFacingError(err, 'Failed to update profile.');
+    setError(message);
+    toast.error(message);
+  } finally {
+    setSaving(false);
+  }
+};
+```
+
+<Note>
+  Display name and profile image are stored in your Supabase `user_metadata` and are reflected throughout the app immediately after saving.
+</Note>
+
+### Email Confirmation Badge
+
+The profile form footer displays your email confirmation status:
+
+- **Email confirmed** (green badge): Your email address has been verified
+- **Email unconfirmed** (orange badge): Your email address has not been verified
+
+Email confirmation is managed by Supabase Auth and controlled by the `emailConfirmedAt` timestamp.
+
+## Security Actions
+
+### Copy User ID
+
+Click **Copy User ID** to copy your unique Supabase user UUID to the clipboard. This is useful for support tickets or debugging.
+
+**Copy handler** (`ProfilePage.tsx:308-319`):
+
+```tsx
+const handleCopyUserId = async () => {
+  if (!profile) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(profile.id);
+    toast.success('User ID copied to clipboard.');
+  } catch {
+    toast.error('Unable to copy User ID in this browser.');
+  }
+};
+```
+
+### Send Password Reset Email
+
+Click **Send password reset email** to trigger a password reset flow. This button is disabled if your account does not have an email address.
+
+**Reset handler** (`ProfilePage.tsx:296-306`):
+
+```tsx
+const handleSendPasswordReset = async () => {
+  setSendingReset(true);
+  try {
+    await sendCurrentUserPasswordResetEmail();
+    toast.success('Password reset email sent.');
+  } catch (err) {
+    toast.error(toUserFacingError(err, 'Failed to send password reset email.'));
+  } finally {
+    setSendingReset(false);
+  }
+};
+```
+
+### Admin Dashboard Link
+
+If you are an admin user, an **Open admin dashboard** button appears in the Account Identity card. This navigates to `/admin`.
+
+**Admin link** (`ProfilePage.tsx:509-517`):
+
+```tsx
+{isAdmin ? (
+  <a
+    href="/admin"
+    className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-[#60A5FA]/30 bg-[#60A5FA]/10 px-3 text-sm text-[#BFDBFE] transition-colors hover:bg-[#60A5FA]/20"
+  >
+    <Shield size={14} />
+    Open admin dashboard
+  </a>
+) : null}
+```
+
+## Landing Ripper Jobs
+
+The **Landing Ripper Jobs** section displays background page capture jobs you've initiated.
+
+### Job Status Filters
+
+Filter jobs by status:
+
+- **All statuses**: Show all jobs
+- **In progress**: Jobs that are queued, preparing, capturing, or packaging
+- **Completed**: Jobs that finished successfully (full or partial)
+- **Failed**: Jobs that encountered errors
+- **Canceled**: Jobs you manually canceled
+
+### Job Actions
+
+<Steps>
+  <Step title="Download artifacts">
+    Click **ZIP**, **Desktop HTML**, or **Mobile HTML** to download available artifacts. Buttons are disabled if artifacts are not available.
+  </Step>
+  <Step title="Retry failed jobs">
+    Click **Retry** on failed, partial, or canceled jobs to re-queue the capture.
+  </Step>
+  <Step title="Cancel in-progress jobs">
+    Click **Cancel** on queued or processing jobs to abort the capture.
+  </Step>
+</Steps>
+
+**Job action buttons** (`ProfilePage.tsx:686-770`):
+
+```tsx
+<button
+  type="button"
+  onClick={() => {
+    if (job.artifacts.zip.downloadUrl) {
+      window.open(job.artifacts.zip.downloadUrl, '_blank', 'noopener,noreferrer');
+    }
+  }}
+  disabled={!job.artifacts.zip.available}
+  className={cn(
+    'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all',
+    job.artifacts.zip.available
+      ? 'bg-[#151519] border-[#1A1A22] text-[#F5F5F0] hover:bg-[#1B1B21]'
+      : 'bg-[#151519] border-[#2A2A35] text-[#5F5F6A] cursor-not-allowed',
+  )}
+>
+  <Download size={12} />
+  ZIP
+</button>
+```
+
+### New Job Badge
+
+If you have new completed jobs since your last visit, a **{count} new** badge appears next to the section header. Click **Mark seen** to clear the badge.
+
+**New job tracking** (`ProfilePage.tsx:360-370`):
+
+```tsx
+const handleMarkRipperSeen = () => {
+  const latestCompletedAt = getLatestCompletedAt(ripperJobs);
+  if (!latestCompletedAt) {
+    setRipperNewCount(0);
+    return;
+  }
+
+  setLandingRipperLastSeenCompletedAt(latestCompletedAt);
+  setRipperNewCount(computeLandingRipperNewCompletionsCount(ripperJobs));
+  toast.success('Ripper completion badge cleared.');
+};
+```
+
+## Refresh and Sign Out
+
+### Refresh Profile Data
+
+Click the **Refresh** button in the header to reload your profile data and landing ripper jobs from the server.
+
+**Refresh handler** (`ProfilePage.tsx:233-255`):
+
+```tsx
+const handleRefresh = async () => {
+  const needsBlockingLoad = !profile;
+  if (needsBlockingLoad) {
+    setLoading(true);
+  } else {
+    setRefreshing(true);
+  }
+  setError(null);
+
+  try {
+    const data = await getCurrentUserProfile();
+    setProfile(data);
+    setForm(buildInitialForm(data));
+    await loadRipperJobs(ripperStatusFilter);
+  } catch (err) {
+    setError(toUserFacingError(err, 'Failed to refresh profile.'));
+  } finally {
+    if (needsBlockingLoad) {
+      setLoading(false);
+    }
+    setRefreshing(false);
+  }
+};
+```
+
+### Sign Out
+
+Click the **Log out** button in the header to sign out of your account. You'll be redirected to the login page.
+
+**Sign out handler** (`ProfilePage.tsx:321-332`):
+
+```tsx
+const handleSignOut = async () => {
+  setSigningOut(true);
+
+  try {
+    await getSupabaseClient().auth.signOut();
+    window.location.assign('/app');
+  } catch (err) {
+    toast.error(toUserFacingError(err, 'Sign out failed.'));
+  } finally {
+    setSigningOut(false);
+  }
+};
+```
+
+<Warning>
+  Signing out terminates your session immediately. You'll need to sign in again to access your account.
+</Warning>

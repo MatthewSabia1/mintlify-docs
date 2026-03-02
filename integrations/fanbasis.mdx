@@ -1,0 +1,458 @@
+---
+title: 'Fanbasis Integration'
+description: 'Automated user provisioning and access management via Fanbasis webhooks'
+---
+
+The Fanbasis integration enables AdRecon to automatically provision user accounts when customers purchase through Fanbasis. The system handles the complete lifecycle: purchases trigger account creation with magic link delivery, while refunds and disputes automatically revoke access.
+
+## Overview
+
+AdRecon integrates with Fanbasis through:
+
+- **Webhook endpoint** (`/api/fanbasis/webhook`) that receives payment events
+- **Admin dashboard** (`/app/admin/fanbasis`) for managing products and monitoring activity
+- **Automated provisioning** that creates Supabase auth users and sends magic links
+- **Access revocation** for refunds, disputes, and chargebacks
+
+<Note>
+All webhook events are logged to `fanbasis_webhook_log` for full audit visibility, regardless of whether they trigger provisioning.
+</Note>
+
+## Setup
+
+### 1. Configure API Key
+
+Set the Fanbasis API key in your environment:
+
+```bash
+FANBASIS_API_KEY=your_api_key_here
+```
+
+### 2. Register Webhook
+
+From the Fanbasis admin page (`/app/admin/fanbasis`):
+
+1. Click **Test Connection** to verify your API key
+2. Click **Register Webhook** to set up the endpoint at `/api/fanbasis/webhook`
+3. The system automatically subscribes to these events:
+   - `payment.succeeded`
+   - `payment.failed`
+   - `payment.expired`
+   - `payment.canceled`
+   - `payment.refunded` (optional)
+   - `payment.dispute.opened` (optional)
+   - `product.purchased`
+   - `subscription.created`
+   - `subscription.renewed`
+   - `subscription.completed`
+   - `subscription.canceled`
+
+<Info>
+The webhook secret is automatically stored in `integration_secrets` table. Re-registering will clean up stale subscriptions to prevent secret mismatches.
+</Info>
+
+### 3. Sync Products
+
+Click **Sync Products** to import all Fanbasis products into `fanbasis_enabled_offers`. Products are matched by:
+
+- **Product ID** (`service_id`) — the canonical identifier used in webhooks
+- **Checkout Session ID** — extracted from `payment_link` URL for fallback matching
+
+<CodeGroup>
+```tsx Admin UI (FanbasisAdmin.tsx:287)
+const handleSync = async () => {
+  setSyncing(true);
+  try {
+    const result = await syncFanbasisProducts();
+    toast.success(`Synced ${result.synced} product${result.synced === 1 ? '' : 's'} from Fanbasis.`);
+    const offersResult = await fetchFanbasisOffers();
+    setOffers(offersResult.offers);
+  } catch (err) {
+    toast.error(toUserFacingError(err, 'Failed to sync products.'));
+  } finally {
+    setSyncing(false);
+  }
+};
+```
+
+```js API (api/admin/fanbasis.js:133)
+async function handleSyncProducts(res, client) {
+  const allProducts = [];
+  let page = 1;
+  const maxPages = 50;
+
+  while (page <= maxPages) {
+    const url = `${FANBASIS_API_BASE}/products?page=${page}`;
+    const response = await fetch(url, { headers: getFanbasisHeaders() });
+    const result = await response.json();
+    const envelope = result.data || result;
+    const products = Array.isArray(envelope) ? envelope : envelope.data || envelope.products || [];
+    
+    if (!Array.isArray(products) || products.length === 0) break;
+    allProducts.push(...products);
+    
+    const totalPages = envelope.last_page || envelope.total_pages || result.last_page;
+    if (totalPages && page >= totalPages) break;
+    page += 1;
+  }
+  
+  // Upsert into fanbasis_enabled_offers...
+}
+```
+</CodeGroup>
+
+### 4. Enable Offers
+
+Toggle which products should trigger user provisioning:
+
+- Products default to **disabled** (enabled: false)
+- Only enabled offers will provision users on purchase
+- If no offers are enabled, all products with "AdRecon" in the title are allowed through
+
+<Warning>
+Disabling an offer does NOT revoke existing users who purchased that product. It only prevents new purchases from creating accounts.
+</Warning>
+
+## Webhook Processing
+
+### Purchase Events
+
+When Fanbasis sends a purchase webhook (`payment.succeeded`, `product.purchased`, `subscription.created`, `subscription.renewed`):
+
+```js api/fanbasis/webhook.js:380
+// 1. Extract fan email and service ID
+const fan = payload.fan || payload.buyer || {};
+const email = fan.email.toLowerCase().trim();
+const serviceId = service.id || service.service_id || service.product_id;
+
+// 2. Validate offer is enabled
+const offerEnabled = await isEnabledOffer(client, [serviceId]);
+if (!offerEnabled && !hasAdReconTitle(body, payload, service)) {
+  await logWebhook(client, {
+    result: 'skipped_offer_not_enabled',
+    error_message: `No enabled offer matches service IDs: ${serviceId}`
+  });
+  return;
+}
+
+// 3. Create or update user
+const existingUser = await findUserByEmail(client, email);
+if (!existingUser) {
+  await client.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: {
+      source: 'fanbasis',
+      fanbasis_service_id: serviceId,
+      fanbasis_buyer_name: fan.name || '',
+      fanbasis_access_revoked: false,
+      fanbasis_last_purchase_at: new Date().toISOString(),
+      fanbasis_last_event_type: eventType
+    }
+  });
+  result = 'user_created';
+} else {
+  const wasRevoked = Boolean(existingUser.user_metadata?.fanbasis_access_revoked);
+  await client.auth.admin.updateUserById(existingUser.id, {
+    user_metadata: { ...purchaseMetadata },
+    ban_duration: 'none' // Unban if previously revoked
+  });
+  result = wasRevoked ? 'user_reactivated' : 'user_exists';
+}
+
+// 4. Send magic link
+await client.auth.signInWithOtp({
+  email,
+  options: {
+    shouldCreateUser: false,
+    emailRedirectTo: process.env.FANBASIS_MAGIC_LINK_REDIRECT_URL || '/app'
+  }
+});
+```
+
+<Info>
+Magic links are sent with `shouldCreateUser: false` because the user was already created by the admin API above.
+</Info>
+
+### Refund & Dispute Events
+
+When Fanbasis sends a refund or dispute webhook:
+
+```js api/fanbasis/webhook.js:304
+if (isRevocationEvent(eventType)) {
+  const existingUser = await findUserByEmail(client, email);
+  if (existingUser) {
+    await client.auth.admin.updateUserById(existingUser.id, {
+      user_metadata: {
+        fanbasis_access_revoked: true,
+        fanbasis_access_revoked_at: new Date().toISOString(),
+        fanbasis_revocation_reason: eventType
+      },
+      ban_duration: '876000h' // ~100 years
+    });
+    result = 'access_revoked';
+  }
+}
+```
+
+Revocation events include:
+- `payment.refunded`
+- `payment.dispute.opened`
+- `subscription.canceled`
+- `subscription.completed`
+- Any event type containing "refund", "dispute", or "chargeback"
+
+## Admin Dashboard
+
+The Fanbasis admin page (`/app/admin/fanbasis`) provides:
+
+### Status Cards
+
+- **API Key**: Shows "Connected" when `FANBASIS_API_KEY` is set
+- **Webhook**: Shows "Registered" when webhook secret exists in database
+- **Active Offers**: Count of enabled products
+
+### Actions
+
+<CodeGroup>
+```tsx Test Connection
+// Validates API key by fetching products
+const response = await fetch(`${FANBASIS_API_BASE}/products?page=1`, {
+  headers: { 'Authorization': `Bearer ${FANBASIS_API_KEY}` }
+});
+```
+
+```tsx Send Test Webhook
+// Sends test event via Fanbasis API
+const response = await fetch(
+  `${FANBASIS_API_BASE}/webhook-subscriptions/${subscriptionId}/test`,
+  {
+    method: 'POST',
+    body: JSON.stringify({ event_type: 'payment.succeeded' })
+  }
+);
+```
+
+```tsx Direct Test
+// Bypasses Fanbasis and calls webhook endpoint directly
+const testPayload = {
+  id: `direct-test-${Date.now()}`,
+  data: {
+    item: { id: 999999, type: 'onetime', title: 'AdRecon' },
+    buyer: { email: 'test@example.com' },
+    event_type: 'payment.succeeded'
+  },
+  type: 'payment.succeeded'
+};
+await fetch(webhookUrl, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(testPayload)
+});
+```
+</CodeGroup>
+
+### Webhook Activity Log
+
+Real-time log of all webhook events with:
+
+- **Event type** (e.g., `payment.succeeded`, `payment.refunded`)
+- **Fan email** extracted from payload
+- **Result badge** showing outcome:
+  - `User Created` — new account provisioned
+  - `User Exists` — existing user updated
+  - `Reactivated` — previously revoked user restored
+  - `Revoked` — access removed due to refund/dispute
+  - `Offer N/A` — product not enabled for provisioning
+  - `No Email` — payload missing buyer email
+  - `Error` — provisioning failed
+- **Raw payload** (expandable JSON)
+- **Manual provision button** for retrying failed events
+
+<Note>
+The log is paginated (25 events per page) and ordered by `created_at DESC`. Use the search to filter by email or service ID.
+</Note>
+
+## Manual Provisioning
+
+Admins can manually provision users from the webhook log:
+
+```tsx src/components/FanbasisAdmin.tsx:362
+const handleManualProvision = async (entry: FanbasisWebhookLogEntry) => {
+  const confirmed = window.confirm(
+    `Provision user access for ${entry.fan_email}?\n\nThis will create/update the user and send them a magic link login email.`
+  );
+  if (!confirmed) return;
+  
+  const result = await manualProvisionUser(entry.fan_email, entry.service_id || '', entry.id);
+  // Result: user_created | user_reactivated | user_exists
+};
+```
+
+This is useful for:
+- Retrying failed provisioning attempts
+- Granting access to users whose webhook was missed
+- Testing the provisioning flow with real emails
+
+## Database Schema
+
+```sql supabase/migrations/20260225020000_add_fanbasis_tables.sql
+create table public.fanbasis_enabled_offers (
+  service_id  text        primary key,
+  title       text        not null default '',
+  price       numeric     not null default 0,
+  enabled     boolean     not null default false,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+create table public.fanbasis_webhook_log (
+  id             bigint generated always as identity primary key,
+  event_type     text        not null,
+  service_id     text,
+  fan_email      text,
+  payload        jsonb       not null default '{}',
+  result         text        not null default 'received',
+  error_message  text,
+  created_at     timestamptz not null default now()
+);
+```
+
+### Row Level Security
+
+- **fanbasis_enabled_offers**: All authenticated users can read; only admins can insert/update/delete
+- **fanbasis_webhook_log**: Only admins can read; no user writes (logged by webhook endpoint)
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `FANBASIS_API_KEY` | Yes | API key for Fanbasis API |
+| `FANBASIS_MAGIC_LINK_REDIRECT_URL` | No | Redirect URL for magic links (defaults to `/app`) |
+| `AUTH_MAGIC_LINK_REDIRECT_URL` | No | Fallback for magic link redirect |
+
+## Troubleshooting
+
+### Webhook not receiving events
+
+1. Check webhook registration status on admin page
+2. Verify `FANBASIS_API_KEY` is set correctly
+3. Test connection using "Test Connection" button
+4. Send a test webhook using "Send Test" button
+5. Check webhook log for error messages
+
+### User not created on purchase
+
+1. Check webhook log for the event
+2. Verify result is not `skipped_offer_not_enabled`
+3. Confirm the product is enabled in the offers list
+4. Check for error_message in the log entry
+5. Use "Provision User" button to retry manually
+
+### Magic link not sent
+
+1. Check Supabase email template configuration
+2. Verify `FANBASIS_MAGIC_LINK_REDIRECT_URL` is set
+3. Check webhook log for magic link error messages
+4. Confirm Supabase SMTP settings are configured
+
+### Duplicate offers after sync
+
+This occurs when a product's checkout session ID differs from its product ID. The sync migrates old entries:
+
+```js api/admin/fanbasis.js:214
+if (checkoutSessionId && checkoutSessionId !== productId) {
+  const { data: oldRow } = await client
+    .from('fanbasis_enabled_offers')
+    .select('service_id, enabled')
+    .eq('service_id', checkoutSessionId)
+    .maybeSingle();
+
+  if (oldRow) {
+    // Migrate enabled state to product ID row
+    await client.from('fanbasis_enabled_offers').insert({
+      service_id: productId,
+      title,
+      price,
+      enabled: oldRow.enabled
+    });
+    // Delete old checkout session ID row
+    await client.from('fanbasis_enabled_offers').delete().eq('service_id', checkoutSessionId);
+  }
+}
+```
+
+## API Reference
+
+### Admin Endpoints
+
+<CodeGroup>
+```bash GET /api/admin/fanbasis?action=status
+curl -H "Authorization: Bearer $TOKEN" \
+  "https://adrecon.app/api/admin/fanbasis?action=status"
+
+# Response
+{ "apiKeySet": true, "webhookSecretSet": true }
+```
+
+```bash GET /api/admin/fanbasis?action=offers
+curl -H "Authorization: Bearer $TOKEN" \
+  "https://adrecon.app/api/admin/fanbasis?action=offers"
+
+# Response
+{
+  "offers": [
+    {
+      "service_id": "12345",
+      "title": "AdRecon Premium",
+      "price": 97,
+      "enabled": true,
+      "created_at": "2026-02-25T12:00:00Z"
+    }
+  ]
+}
+```
+
+```bash POST /api/admin/fanbasis (sync_products)
+curl -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"sync_products"}' \
+  "https://adrecon.app/api/admin/fanbasis"
+
+# Response
+{ "ok": true, "synced": 3 }
+```
+
+```bash POST /api/admin/fanbasis (toggle_offer)
+curl -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"toggle_offer","serviceId":"12345","enabled":true}' \
+  "https://adrecon.app/api/admin/fanbasis"
+
+# Response
+{ "ok": true }
+```
+</CodeGroup>
+
+### Webhook Endpoint
+
+```bash POST /api/fanbasis/webhook
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "evt_123",
+    "type": "payment.succeeded",
+    "data": {
+      "item": { "id": 12345, "title": "AdRecon Premium" },
+      "buyer": { "email": "customer@example.com", "name": "John Doe" },
+      "amount": 97,
+      "currency": "USD"
+    }
+  }' \
+  "https://adrecon.app/api/fanbasis/webhook"
+
+# Response
+{ "ok": true, "result": "user_created" }
+```

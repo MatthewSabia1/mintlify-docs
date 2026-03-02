@@ -1,0 +1,218 @@
+---
+title: 'Page Ripper'
+description: 'Capture full offline snapshots of ad landing pages in one click'
+icon: 'scissors'
+---
+
+## Overview
+
+The Page Ripper feature captures complete, self-contained snapshots of ad landing pages so you can study funnels offline, customize them for your own campaigns, and preserve pages before they go down.
+
+## What is Page Ripper?
+
+Page Ripper uses headless browser technology to:
+
+- **Capture full HTML** — Self-contained page snapshot with all assets
+- **Download as ZIP** — Organized folder with HTML, CSS, JS, images, fonts, and media
+- **Preserve layout** — Pixel-perfect offline rendering
+- **Skip login walls** — Only works for public landing pages (no Facebook/Meta URLs)
+
+<Info>
+Page Ripper runs server-side using headless Chromium. The entire capture happens in one synchronous request — no job queues or background processing.
+</Info>
+
+## How to Use Page Ripper
+
+<Steps>
+  <Step title="Open Ad Detail Modal">
+    Click any ad in the feed to view full details
+  </Step>
+  <Step title="Check Landing Page URL">
+    The modal shows the resolved landing page URL (non-Meta URLs only)
+  </Step>
+  <Step title="Click 'Rip Landing Page'">
+    Press the button in the Page Ripper section
+  </Step>
+  <Step title="Wait for Capture">
+    Progress indicator shows capture status (can take up to 2 minutes for large pages)
+  </Step>
+  <Step title="Download ZIP">
+    Your browser downloads the ZIP archive automatically on success
+  </Step>
+</Steps>
+
+### What You'll Get
+
+The ZIP archive contains:
+
+```
+landing-page-YYYY-MM-DDTHH-MM-SS.zip
+├── page.html            # Self-contained HTML (inline CSS/JS)
+└── assets/
+    ├── css/             # External stylesheets
+    ├── js/              # JavaScript files
+    ├── images/          # PNG, JPG, SVG, WebP, AVIF, ICO, GIF
+    ├── fonts/           # WOFF, WOFF2, TTF, OTF, EOT
+    └── media/           # MP4, WebM, MP3, OGG, WAV
+```
+
+<Note>
+The `page.html` file is self-contained and can be opened directly in a browser without extracting assets. The `assets/` folder contains referenced external resources.
+</Note>
+
+## Landing Page Detection
+
+AdRecon automatically resolves landing pages:
+
+1. **Primary source** — `destination_url` field from ad data
+2. **Fallback** — URLs extracted from ad copy and link description
+3. **Unwrapping** — Facebook redirect URLs (`/l.php`) are unwrapped to final destination
+4. **Filtering** — Meta platform URLs (facebook.com, instagram.com) are excluded
+
+### When Page Ripper is Available
+
+The button appears when:
+
+- ✅ A non-Meta landing URL is detected
+- ✅ The URL is a valid HTTP(S) address
+- ✅ The ad modal shows "Open Landing Page" button as active
+
+### When Page Ripper is Unavailable
+
+You'll see a disabled state or message when:
+
+- ❌ Landing page is a Meta platform URL (Facebook, Instagram, Threads)
+- ❌ No landing page URL detected in ad data
+- ❌ Landing URL is invalid or non-HTTP
+- ❌ Another capture is already in progress
+
+<Warning>
+Page Ripper cannot capture Facebook/Instagram pages — these require login and have bot protection. Only public landing pages (external domains) are supported.
+</Warning>
+
+## Capture Process Details
+
+### What Happens Server-Side
+
+1. **Validation** — URL checked for SSRF safety (no private IPs, DNS rebinding protection)
+2. **Rate limiting** — 10 captures per user per 15 minutes
+3. **Browser launch** — Headless Chromium starts via Puppeteer
+4. **Navigation** — Page loads with 60-second timeout
+5. **Auto-scroll** — Triggers lazy-loaded images and content
+6. **Capture** — SingleFile library extracts HTML + intercepts network resources
+7. **Packaging** — ZIP archive created with categorized assets
+8. **Cleanup** — Browser closed, response streamed to client
+
+<Info>
+The server enforces a 110-second hard timeout. If the page takes longer to capture, you'll receive a 504 timeout error.
+</Info>
+
+### Progress States
+
+- **Idle** — "Rip Landing Page" button ready
+- **Loading** — Progress bar + status message ("Launching browser...", "Capturing page...")
+- **Success** — Green checkmark + "Landing page ripped" message
+- **Error** — Red error icon + retry button
+
+## Resource Limits
+
+To prevent abuse and ensure performance:
+
+- **100 MB total size** — Captures exceeding this are rejected
+- **500 resources max** — Pages with more than 500 assets are truncated
+- **60s navigation timeout** — Page must load within 60 seconds
+- **110s hard timeout** — Total capture must complete in 110 seconds
+
+<Warning>
+Very large or slow-loading pages may hit resource limits. The capture will complete with available assets, but some files may be skipped.
+</Warning>
+
+## Rate Limiting
+
+Page Ripper enforces a rate limit:
+
+- **10 captures per user per 15 minutes**
+- **Sliding window** — Resets continuously, not at fixed intervals
+- **429 response** — Includes `Retry-After` header with seconds until next slot
+
+<Note>
+Rate limit failures show a toast notification with retry time. The button remains disabled until the window resets.
+</Note>
+
+## Security & Privacy
+
+### SSRF Protection
+
+The server validates every URL:
+
+1. **Hostname blocklist** — Rejects private IPs, localhost, internal domains
+2. **DNS resolution check** — Verifies domain resolves to public IP
+3. **Post-redirect re-check** — Validates final URL after redirects
+
+### Data Handling
+
+- **No storage** — ZIP is streamed directly to your browser, not stored on server
+- **No logging** — Page content is not logged or persisted
+- **Rate limit only** — Only capture timestamps are stored (for rate limiting)
+- **No credentials** — Browser runs unauthenticated (public pages only)
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Funnel Research" icon="chart-line">
+    Download competitor landing pages to analyze copywriting, layout, and CTAs
+  </Card>
+  <Card title="Swipe File" icon="folder">
+    Build an offline library of high-converting pages for creative inspiration
+  </Card>
+  <Card title="Page Archival" icon="archive">
+    Preserve landing pages before they're taken down or changed
+  </Card>
+  <Card title="Template Customization" icon="palette">
+    Download page structure and customize HTML/CSS for your own offers
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### "Landing page capture is unavailable"
+
+- **Cause:** Landing URL is a Meta platform (Facebook/Instagram)
+- **Solution:** Page Ripper only works for external public pages. Meta URLs require login and cannot be captured.
+
+### "Page rip failed" (500 error)
+
+- **Cause:** Browser crash, invalid HTML, or capture exception
+- **Solution:** Click **Try Again**. If repeated failures, the page may have anti-bot protection.
+
+### "Page capture timed out" (504 error)
+
+- **Cause:** Page took longer than 60s to load, or total capture exceeded 110s
+- **Solution:** The page is too slow or complex. Try again later or use browser DevTools to save manually.
+
+### "Rate limit exceeded" (429 error)
+
+- **Cause:** You've captured 10 pages in the last 15 minutes
+- **Solution:** Wait for the time shown in the error message, then retry
+
+<Warning>
+If you repeatedly hit timeouts, the target site may be blocking headless browsers. Page Ripper cannot bypass anti-bot protections.
+</Warning>
+
+## Technical Limitations
+
+- **No JavaScript execution** — Captured page is static HTML; dynamic JS behavior won't work offline
+- **No login-gated content** — Only publicly accessible pages can be captured
+- **No iframe content** — Cross-origin iframes are not captured
+- **Limited cookie state** — Browser runs unauthenticated; personalized content won't appear
+
+## Related Features
+
+<CardGroup cols={2}>
+  <Card title="Ad Feed" icon="table-list" href="/features/ad-feed">
+    Browse ads to find landing pages to rip
+  </Card>
+  <Card title="Saved Ads" icon="bookmark" href="/features/saved-ads">
+    Save ads before ripping their landing pages
+  </Card>
+</CardGroup>

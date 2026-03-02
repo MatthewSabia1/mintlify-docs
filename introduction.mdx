@@ -1,0 +1,133 @@
+---
+title: Welcome to AdRecon
+description: Track, analyze, and save winning ad creatives from the world's top affiliate networks
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.svg"
+  alt="AdRecon Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.svg"
+  alt="AdRecon Hero Dark"
+/>
+
+## What is AdRecon?
+
+AdRecon is a SaaS ad intelligence platform that gives you direct access to a curated database of **100,000+ active ad creatives** across the largest affiliate networks in the world.
+
+Whether you're a media buyer, affiliate marketer, or creative strategist, AdRecon helps you discover what's working in real-time across:
+
+- **ClickBank**
+- **Digistore24**
+- **BuyGoods**
+- **MaxWeb**
+
+<CardGroup cols={2}>
+  <Card
+    title="Get Started in Minutes"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Sign in and start exploring winning creatives immediately
+  </Card>
+  <Card
+    title="Technical Architecture"
+    icon="diagram-project"
+    href="/architecture"
+  >
+    Learn how AdRecon is built on Vercel and Supabase
+  </Card>
+</CardGroup>
+
+## Key Capabilities
+
+<AccordionGroup>
+  <Accordion title="Live Ad Feed" icon="rss">
+    Browse a continuously updated feed of active ads with normalized metadata including:
+    - Creative images and landing page URLs
+    - Network classification (ClickBank, Digistore24, BuyGoods, MaxWeb, Other)
+    - Taxonomy classification (Health, Wealth, BizOpp, Relationship, Survival, Other)
+    - Affiliate network metadata and product identifiers
+  </Accordion>
+
+  <Accordion title="Save & Organize Ads" icon="bookmark">
+    Build your swipe file with:
+    - One-click save for any creative
+    - Project-based organization for campaigns or research
+    - Personal saved ad library with instant filtering
+    - Per-user isolation with row-level security
+  </Accordion>
+
+  <Accordion title="Landing Page Ripper" icon="download">
+    Capture complete landing pages for offline analysis:
+    - Self-contained HTML snapshots using headless Chromium + SingleFile
+    - Bundled assets (CSS, JS, images, fonts, media) in a single ZIP download
+    - Auto-scroll to trigger lazy-loaded content
+    - SSRF protection and rate limiting (10 captures per 15 minutes)
+  </Accordion>
+
+  <Accordion title="Multi-Network Coverage" icon="globe">
+    AdRecon normalizes data from multiple affiliate networks into a unified feed:
+    - Consistent schema across all networks
+    - High-quality media URL prioritization
+    - Automatic classification and tagging
+  </Accordion>
+</AccordionGroup>
+
+## Platform Features
+
+<CardGroup cols={3}>
+  <Card title="Real-time Feed" icon="bolt">
+    Access live ad data directly from Supabase with instant filtering and pagination
+  </Card>
+  <Card title="Secure Authentication" icon="shield-halved">
+    Magic link and Google OAuth powered by Supabase Auth
+  </Card>
+  <Card title="Project Workspaces" icon="folder">
+    Organize saved ads into projects for campaigns, clients, or research
+  </Card>
+  <Card title="Media Proxy" icon="image">
+    Serverless image proxy for secure creative rendering
+  </Card>
+  <Card title="Admin Dashboard" icon="gauge">
+    User management, Fanbasis integration, and system controls
+  </Card>
+  <Card title="Profile Management" icon="user">
+    Manage your account settings, auth providers, and preferences
+  </Card>
+</CardGroup>
+
+<Note>
+  AdRecon uses a direct Supabase query path with row-level security (RLS) to ensure your saved ads and projects remain private and secure.
+</Note>
+
+## Data Quality
+
+AdRecon prioritizes high-quality media URLs and normalizes raw affiliate network data into a clean, consistent schema:
+
+- **Normalized View**: `ads_feed_v2` provides a unified interface across all networks
+- **Media Prioritization**: Automatic selection of the highest quality creative assets
+- **Fixed Taxonomy**: Standardized categories across all ad sources
+- **Active Monitoring**: Continuous data refresh from affiliate network sources
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart Guide"
+    icon="circle-play"
+    href="/quickstart"
+  >
+    Sign in, view the feed, save your first ad, and create a project
+  </Card>
+  <Card
+    title="Architecture Overview"
+    icon="sitemap"
+    href="/architecture"
+  >
+    Understand the Vercel + Supabase stack powering AdRecon
+  </Card>
+</CardGroup>

@@ -1,0 +1,375 @@
+---
+title: Admin Dashboard
+description: Manage users, view platform statistics, and perform account operations from the AdRecon admin dashboard.
+---
+
+The Admin Dashboard provides comprehensive user management, platform metrics, and administrative controls for AdRecon. Access is restricted to users with `app_metadata.user_type = 'admin'`.
+
+## Accessing the Admin Dashboard
+
+Navigate to `/admin` or `/app/admin` while signed in as an admin user. Non-admin users will see an access-required message.
+
+**Route**: `/admin` or `/app/admin`
+
+**Component**: `AdminDashboard.tsx`
+
+## User Statistics Overview
+
+The dashboard displays real-time platform metrics across seven stat cards.
+
+### Stat Cards
+
+| Stat | Description | Icon |
+|---|---|---|
+| **Total Users** | Count of all registered users | Users |
+| **Admins** | Count of users with admin privileges | ShieldCheck |
+| **Active (7d)** | Users who signed in within the last 7 days | Clock3 |
+| **Email Confirmed** | Users with confirmed email addresses | MailCheck |
+| **Saved Ads** | Total saved ads across all users | BookMarked |
+| **Projects** | Total projects created by all users | Database |
+| **Indexed Ads** | Total ads in the platform feed | Database |
+
+**Data source**: The stats are fetched from `/api/admin/users` (`AdminDashboard.tsx:301-315`).
+
+### Coverage Metrics
+
+Three coverage percentage cards show admin distribution, email verification rate, and recent activity:
+
+- **Admin Coverage**: `(adminUsers / totalUsers) * 100`
+- **Email Verification**: `(confirmedUsers / totalUsers) * 100`
+- **7-Day Activity**: `(recentlyActiveUsers7d / totalUsers) * 100`
+
+Each metric displays a progress bar with color-coded themes.
+
+## User Directory
+
+The user directory is the primary interface for listing, searching, filtering, and managing user accounts.
+
+### Search and Filters
+
+<Steps>
+  <Step title="Search by email or name">
+    Use the search input to filter users by email address or display name. Search is debounced by 260ms to reduce query load.
+  </Step>
+  <Step title="Filter by role">
+    Select **All Roles**, **Admins**, or **Members** to narrow the user list.
+  </Step>
+  <Step title="Filter by confirmation status">
+    Select **All Status**, **Confirmed**, or **Unconfirmed** to show only verified or unverified email accounts.
+  </Step>
+</Steps>
+
+**Filter reset**: Click **Clear filters** to reset all search and filter fields (`AdminDashboard.tsx:475-479`).
+
+### Pagination
+
+The user directory displays 25 users per page. Use **Previous** and **Next** buttons to navigate pages.
+
+**Pagination state** (`AdminDashboard.tsx:259-264`):
+
+```tsx
+const [pagination, setPagination] = useState<AdminPagination>({
+  page: 1,
+  perPage: PAGE_SIZE,
+  total: 0,
+  totalPages: 1,
+});
+```
+
+### User Risk Profiles
+
+Each user is assigned a risk profile based on activity patterns:
+
+| Risk Level | Condition | Badge Color |
+|---|---|---|
+| **Elevated** | Admin without confirmed email | Red |
+| **Dormant** | No sign-in history | Orange |
+| **Stale** | No activity for 120+ days | Orange |
+| **Healthy** | Recently active account | Green |
+
+**Risk calculation** (`AdminDashboard.tsx:188-220`):
+
+```tsx
+function getUserRiskProfile(user: AdminUserRecord): { label: string; detail: string; tone: string } {
+  const daysSinceSignIn = getDaysSince(user.lastSignInAt);
+
+  if (user.userType === 'admin' && !user.emailConfirmedAt) {
+    return {
+      label: 'Elevated',
+      detail: 'Admin without confirmed email.',
+      tone: 'border-[#EF4444]/30 bg-[#EF4444]/10 text-[#FCA5A5]',
+    };
+  }
+
+  if (daysSinceSignIn === null) {
+    return {
+      label: 'Dormant',
+      detail: 'No sign-in history.',
+      tone: 'border-[#F59E0B]/30 bg-[#F59E0B]/10 text-[#FCD34D]',
+    };
+  }
+
+  if (daysSinceSignIn >= 120) {
+    return {
+      label: 'Stale',
+      detail: `No activity for ${daysSinceSignIn} days.`,
+      tone: 'border-[#F59E0B]/30 bg-[#F59E0B]/10 text-[#FCD34D]',
+    };
+  }
+
+  return {
+    label: 'Healthy',
+    detail: 'Recently active account.',
+    tone: 'border-[#34D399]/30 bg-[#34D399]/10 text-[#6EE7B7]',
+  };
+}
+```
+
+## User Management Actions
+
+### Changing User Roles
+
+Admins can promote members to admin or demote admins to member status.
+
+<Steps>
+  <Step title="Locate the user">
+    Search or browse the user directory to find the target user.
+  </Step>
+  <Step title="Toggle the role dropdown">
+    Each user row displays a role selector with **Admin** and **Member** options.
+  </Step>
+  <Step title="Select the new role">
+    Click the desired role. The change is applied immediately via `PATCH /api/admin/users`.
+  </Step>
+  <Step title="Confirm the change">
+    A success toast confirms the update, and the user directory refreshes to reflect the new role.
+  </Step>
+</Steps>
+
+<Warning>
+  You cannot remove your own admin access. The system prevents self-demotion with the error: *"You cannot remove your own admin access from this session."*
+</Warning>
+
+**Role change handler** (`AdminDashboard.tsx:481-506`):
+
+```tsx
+const handleUserTypeChange = async (user: AdminUserRecord, nextUserType: AdminUserType) => {
+  if (user.userType === nextUserType) {
+    return;
+  }
+
+  if (user.id === currentUserId && nextUserType !== 'admin') {
+    toast.error('You cannot remove your own admin access from this session.');
+    return;
+  }
+
+  const previousUserType = user.userType;
+  setUsers((prev) => prev.map((item) => (item.id === user.id ? { ...item, userType: nextUserType } : item)));
+  markPending(user.id, 'role');
+
+  try {
+    const updatedUser = await updateAdminUserType(user.id, nextUserType);
+    setUsers((prev) => prev.map((item) => (item.id === user.id ? updatedUser : item)));
+    setRefreshTick((prev) => prev + 1);
+    toast.success(`Updated ${user.email || 'user'} to ${nextUserType}.`);
+  } catch (err) {
+    setUsers((prev) => prev.map((item) => (item.id === user.id ? { ...item, userType: previousUserType } : item)));
+    toast.error(toUserFacingError(err, 'Failed to update user type.'));
+  } finally {
+    clearPending(user.id);
+  }
+};
+```
+
+### Sending Password Reset Emails
+
+Admins can trigger password reset emails for any user.
+
+<Steps>
+  <Step title="Locate the user">
+    Find the user in the directory.
+  </Step>
+  <Step title="Click the reset button">
+    Each user row includes a password reset action button (key icon).
+  </Step>
+  <Step title="Email is sent">
+    The system calls `POST /api/admin/users` with `action: 'send_password_reset'`. The user receives a reset email at their registered address.
+  </Step>
+</Steps>
+
+**Reset handler** (`AdminDashboard.tsx:508-519`):
+
+```tsx
+const handleSendReset = async (user: AdminUserRecord) => {
+  markPending(user.id, 'reset');
+
+  try {
+    await sendAdminPasswordReset(user.id);
+    toast.success(`Password reset email sent to ${user.email || 'user'}.`);
+  } catch (err) {
+    toast.error(toUserFacingError(err, 'Failed to send password reset email.'));
+  } finally {
+    clearPending(user.id);
+  }
+};
+```
+
+### Deleting Users
+
+Admins can permanently delete user accounts. This action is irreversible.
+
+<Steps>
+  <Step title="Locate the user">
+    Find the user in the directory.
+  </Step>
+  <Step title="Click the delete button">
+    Each user row includes a delete action button (trash icon).
+  </Step>
+  <Step title="Confirm deletion">
+    A browser confirmation dialog appears: *"Delete user {email}? This cannot be undone."*
+  </Step>
+  <Step title="User is deleted">
+    Upon confirmation, the system calls `DELETE /api/admin/users?userId={id}` and removes the user from the directory.
+  </Step>
+</Steps>
+
+<Warning>
+  You cannot delete your own account from the admin panel. The system blocks self-deletion with the error: *"You cannot delete your own account from this panel."*
+</Warning>
+
+**Delete handler** (`AdminDashboard.tsx:521-543`):
+
+```tsx
+const handleDelete = async (user: AdminUserRecord) => {
+  if (user.id === currentUserId) {
+    toast.error('You cannot delete your own account from this panel.');
+    return;
+  }
+
+  const confirmed = window.confirm(`Delete user ${user.email || user.id}? This cannot be undone.`);
+  if (!confirmed) {
+    return;
+  }
+
+  markPending(user.id, 'delete');
+
+  try {
+    await deleteAdminUser(user.id);
+    toast.success(`Deleted ${user.email || 'user'} successfully.`);
+    setRefreshTick((prev) => prev + 1);
+  } catch (err) {
+    toast.error(toUserFacingError(err, 'Failed to delete user.'));
+  } finally {
+    clearPending(user.id);
+  }
+};
+```
+
+## Additional Admin Controls
+
+### Accent Theme Toggle
+
+Admins can switch the global accent theme between **Gold** and **Green**. This setting applies to all users.
+
+**Theme toggle** (`AdminDashboard.tsx:545-561`):
+
+```tsx
+const handleThemeToggle = async () => {
+  const next: AccentTheme = accentTheme === 'gold' ? 'green' : 'gold';
+  setAccentTheme(next);
+  applyTheme(next);
+  setThemeSaving(true);
+  try {
+    await setTheme(next);
+    toast.success(`Accent theme switched to ${next}.`);
+  } catch (err) {
+    // revert on failure
+    setAccentTheme(accentTheme);
+    applyTheme(accentTheme);
+    toast.error(toUserFacingError(err, 'Failed to save theme. Make sure the app_settings table exists.'));
+  } finally {
+    setThemeSaving(false);
+  }
+};
+```
+
+### Phantom Growth Settings
+
+The **Phantom Growth** panel controls inflated ad count displays on the unfiltered dashboard. Admins configure:
+
+- **Min Daily**: Minimum daily phantom ad growth
+- **Max Daily**: Maximum daily phantom ad growth
+- **Base Multiplier**: Multiplier applied to the real indexed ad count
+- **Anchor Date**: Start date for phantom growth calculations
+
+**Live preview** shows the projected phantom total based on current settings.
+
+### Meta Pixel Configuration
+
+Admins can set or remove a Facebook/Meta tracking pixel ID that fires on every page load (including the login screen).
+
+<Steps>
+  <Step title="Enter Pixel ID">
+    Input a 10–20 digit Pixel ID from Meta Events Manager.
+  </Step>
+  <Step title="Save">
+    Click **Save** to inject the pixel globally.
+  </Step>
+  <Step title="Remove (optional)">
+    Click **Remove** to clear the pixel configuration.
+  </Step>
+</Steps>
+
+### Ads Feed Mode Toggle
+
+Admins can control which ads are shown in the "All Ads" tab:
+
+- **All Ads**: Show the current full feed
+- **SpyHero Imported**: Only ads imported from SpyHero
+- **Legacy Only**: Hide SpyHero imported ads
+
+### Ad Scraper Panel
+
+The **Ad Scraper** panel lets admins trigger Facebook Ad Library scraping runs via Apify. This populates the database with fresh ad creatives.
+
+<Steps>
+  <Step title="Select target count">
+    Choose how many ads to scrape: **1,000**, **2,500**, or **5,000** ads
+  </Step>
+  <Step title="Start scrape">
+    Click **Start Scrape** to launch an Apify actor run with curated search queries across niches (Health, Wealth, BizOp, Relationships, Survival)
+  </Step>
+  <Step title="Monitor progress">
+    The terminal-style interface shows real-time progress:
+    - **Scraping phase**: Apify actor status updates
+    - **Ingesting phase**: Processing and inserting ads into the database
+    - **Stats**: Displays deduplication metrics (skipped duplicates, non-English ads, malformed entries, final insert count)
+  </Step>
+</Steps>
+
+**Ingestion filtering** (`api/admin/scrape.js:41-52`):
+
+The scraper automatically filters out:
+- Duplicate ad content
+- Non-English ads (language detection)
+- Ads without advertiser information
+- Ads without media assets
+- Malformed ad data
+
+<Note>
+  Scrape runs are admin-only operations that directly modify the `apify_ads_raw` table. The Apify token and actor ID are configured via environment variables (`APIFY_TOKEN`, `ACTOR_ID`).
+</Note>
+
+## Refresh and Sync
+
+Click the **Refresh** button in the header to reload user data, stats, and pagination state. The sync indicator shows **Synced** when data is current and **Refreshing** during updates.
+
+## Error Handling
+
+If the admin dashboard fails to load, an error screen displays with:
+
+- **Admin Access Required**: Your account lacks admin privileges
+- **Session Expired**: Your session token is invalid or expired
+- **Admin API Error**: A generic failure occurred
+
+Each error includes a **Retry** option or prompts you to sign in again.

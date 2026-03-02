@@ -1,0 +1,160 @@
+---
+title: 'Ad Feed'
+description: 'Browse and discover ads from the AdRecon intelligence database'
+icon: 'table-list'
+---
+
+## Overview
+
+The Ad Feed is the core interface for browsing AdRecon's ad intelligence database. It displays ads in a rich, sortable table or grid view with real-time filtering and performance indicators.
+
+## Viewing Scopes
+
+The feed operates in three distinct scopes:
+
+<CardGroup cols={3}>
+  <Card title="All Ads" icon="database">
+    Browse the complete ad intelligence database with all available ads across networks and niches
+  </Card>
+  <Card title="Saved Ads" icon="bookmark">
+    View only the ads you've bookmarked for later reference or deeper analysis
+  </Card>
+  <Card title="Project View" icon="folder-open">
+    Filter ads by specific project folders to organize campaign research
+  </Card>
+</CardGroup>
+
+### Switching Between Scopes
+
+1. Use the tabs at the top of the dashboard:
+   - **All** — Browse the full database
+   - **Saved** — View your saved collection
+   - **Projects** — Select a project from the sidebar
+
+2. Each scope maintains its own filtering and sorting state
+
+3. The ad count updates automatically based on active filters
+
+## Display Modes
+
+AdRecon offers two viewing modes to match your workflow:
+
+### Table View (Default)
+
+The table view provides a compact, scannable layout optimized for quick analysis:
+
+- **Creative thumbnail** — 70px preview with video indicator
+- **Offer details** — Name, advertiser, and ad copy preview
+- **Performance metrics** — Niche, network, days running, status
+- **Quick actions** — Save/unsave ads with one click
+- **Multi-creative expansion** — Click the chevron to expand carousel/gallery ads
+
+<Info>
+Ads with multiple creatives show a chevron icon and creative count. Click to expand inline sub-creative rows without opening the modal.
+</Info>
+
+### Grid View
+
+The grid view displays ads as large cards, ideal for visual browsing:
+
+- **Large creative preview** — Prominent image display
+- **Hover animations** — Scale and opacity effects
+- **Overlay badges** — Niche, status, and days running
+- **Responsive layout** — 1-4 columns based on screen width
+
+## Sorting Options
+
+Click column headers in table view to sort:
+
+<Steps>
+  <Step title="Days Running">
+    Default sort — shows longest-running ads first (proven performers)
+  </Step>
+  <Step title="Network">
+    Group ads by affiliate network (ClickBank, Digistore24, etc.)
+  </Step>
+  <Step title="Niche">
+    Group by vertical (Health, Wealth, BizOpp, Relationship, Survival)
+  </Step>
+  <Step title="Status">
+    Active ads first, then inactive
+  </Step>
+  <Step title="Last Updated">
+    Most recently refreshed ads appear first
+  </Step>
+</Steps>
+
+<Note>
+Sort direction toggles between ascending and descending. The active sort column shows an arrow indicator.
+</Note>
+
+## Performance Indicators
+
+Every ad displays real-time performance signals:
+
+### Days Running
+
+Shows how long the ad has been active. Longer runtime indicates profitability:
+
+- **0-14 days** — New (testing phase)
+- **7-29 days** — Promising (early traction)
+- **30-59 days** — Profitable (validated offer)
+- **60+ days** — Proven (strong long-term performer)
+
+### Status Badge
+
+- **Active** — Currently running (green badge)
+- **Inactive** — No longer live (gray badge)
+
+### Niche & Network Tags
+
+Color-coded badges for quick visual categorization:
+
+- **Health** — Red
+- **Wealth** — Green
+- **BizOpp** — Orange
+- **Relationship** — Pink
+- **Survival** — Orange-red
+
+## Multi-Creative Ads
+
+Ads with carousels, galleries, or video variants show:
+
+1. **Creative count badge** — Number next to chevron icon
+2. **Expandable sub-rows** — Click to reveal all variations inline
+3. **Type indicators** — Image vs. video badges
+4. **Dimension labels** — Auto-detected resolution for images
+
+<Warning>
+Sub-creatives load on-demand when you expand. Large carousel ads may take a moment to fetch all variations.
+</Warning>
+
+## Loading States
+
+The feed provides visual feedback during data operations:
+
+- **Terminal animation** — Matrix-style decode effect on first load
+- **Skeleton rows** — Placeholder cards while fetching
+- **Refresh spinner** — Animated indicator when applying filters
+- **Empty state** — Search icon with helpful message when no results
+
+## Mobile Optimizations
+
+On mobile devices:
+
+- Compact card layout replaces table view
+- Status dots instead of full badges
+- Touch-optimized action buttons
+- Simplified sub-creative expansion
+- Bottom sheet filters
+
+## Related Features
+
+<CardGroup cols={2}>
+  <Card title="Filters" icon="sliders" href="/features/filters">
+    Apply niche, network, status, and performance filters
+  </Card>
+  <Card title="Saved Ads" icon="bookmark" href="/features/saved-ads">
+    Learn how to save and organize ads for later
+  </Card>
+</CardGroup>

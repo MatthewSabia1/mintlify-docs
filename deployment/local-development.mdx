@@ -1,0 +1,161 @@
+---
+title: Local Development
+description: Set up AdRecon for local development with Vite
+---
+
+AdRecon runs as a Vite-powered React application with Supabase backend. Follow these steps to get your local development environment running.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+- Node.js (version 18 or higher)
+- npm (included with Node.js)
+- A Supabase project with the required schema
+- Git (for cloning the repository)
+
+<Steps>
+  <Step title="Install dependencies">
+    Clone the repository and install all required npm packages:
+
+    ```bash
+    npm install
+    ```
+
+    This will install all dependencies listed in `package.json`, including:
+    - React 19
+    - Vite 6.2
+    - Supabase JS client
+    - Tailwind CSS
+    - And other runtime dependencies
+  </Step>
+
+  <Step title="Configure environment variables">
+    Copy the example environment file to create your local configuration:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Edit `.env` and configure the required environment variables. At minimum, you need:
+
+    ```bash .env
+    VITE_SUPABASE_URL="https://your-project.supabase.co"
+    VITE_SUPABASE_ANON_KEY="your-anon-key"
+    SUPABASE_URL="https://your-project.supabase.co"
+    SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+    ```
+
+    See the [Environment Variables](/deployment/environment-variables) page for detailed descriptions of all available variables.
+  </Step>
+
+  <Step title="Start the development server">
+    Run the Vite development server:
+
+    ```bash
+    npm run dev
+    ```
+
+    The application will start on **port 3000** with the following features:
+    - Hot module replacement (HMR) for instant updates
+    - Accessible on `http://localhost:3000`
+    - Network accessible on `http://0.0.0.0:3000`
+  </Step>
+</Steps>
+
+## Development Server Details
+
+### Port Configuration
+
+The dev server runs on **port 3000** by default, configured in `package.json:7`:
+
+```json
+"dev": "vite --port=3000 --host=0.0.0.0"
+```
+
+The `--host=0.0.0.0` flag makes the server accessible from your network, useful for testing on mobile devices.
+
+### Hot Module Replacement
+
+Vite provides fast hot reload functionality:
+- CSS changes apply instantly without page refresh
+- React components reload while preserving state
+- TypeScript compilation happens on-demand
+
+### Route Aliases
+
+The dev server is configured with route aliases for the SPA:
+- `/` - Root entry point (auth shell)
+- `/app` - Main application
+- `/admin` - Admin dashboard
+- `/profile` - User profile
+
+All routes serve the same Vite app with client-side routing.
+
+## Additional Commands
+
+### Type Checking
+
+Run TypeScript type checking without emitting files:
+
+```bash
+npm run lint
+```
+
+### Build Preview
+
+Build the application and preview it locally:
+
+```bash
+npm run build
+npm run preview
+```
+
+The preview server runs on port 4173.
+
+### Run Tests
+
+Execute the test suite:
+
+```bash
+npm test
+```
+
+## Supabase Configuration
+
+<Note>
+  Ensure your Supabase project has the required schema migrations applied. Check `supabase/migrations/` for the necessary migration files.
+</Note>
+
+### Auth Provider Setup
+
+1. **Email Provider (Magic Link)**:
+   - Enable in Supabase Dashboard → Authentication → Providers → Email
+
+2. **Google OAuth**:
+   - Configure Google provider credentials in Supabase Dashboard → Authentication → Providers → Google
+
+3. **Redirect URLs**:
+   - Set `SITE_URL` to include `/app` route (e.g., `https://your-domain.com/app`)
+   - Add redirect URLs for each environment in Authentication → URL Configuration
+
+## Troubleshooting
+
+### Port Already in Use
+
+If port 3000 is already in use, either:
+- Stop the process using port 3000
+- Modify the dev script in `package.json` to use a different port
+
+### Supabase Connection Issues
+
+<Warning>
+  Verify your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are correct. These must be prefixed with `VITE_` to be accessible in the frontend.
+</Warning>
+
+### Build Errors
+
+Run type checking to identify TypeScript errors:
+
+```bash
+npm run lint
+```

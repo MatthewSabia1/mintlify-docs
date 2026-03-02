@@ -1,0 +1,294 @@
+---
+title: 'Filters'
+description: 'Narrow down the ad feed by niche, network, status, performance, and search terms'
+icon: 'sliders-h'
+---
+
+## Overview
+
+Filters let you slice the ad feed to find exactly what you're looking for. Combine niche, network, status, performance bucket, and keyword search to refine results.
+
+## Filter Types
+
+AdRecon provides five independent filter dimensions:
+
+<CardGroup cols={2}>
+  <Card title="Niche" icon="tag">
+    Filter by vertical: Health, Wealth, BizOpp, Relationship, Survival, Other
+  </Card>
+  <Card title="Network" icon="network-wired">
+    Filter by affiliate network: ClickBank, Digistore24, BuyGoods, MaxWeb, WarriorPlus, Other
+  </Card>
+  <Card title="Status" icon="circle-check">
+    Active or Inactive ads
+  </Card>
+  <Card title="Performance" icon="chart-line">
+    New, Promising, Profitable, Proven (based on days running + status)
+  </Card>
+</CardGroup>
+
+## Niche Filter
+
+Niches categorize ads by vertical market:
+
+### Available Niches
+
+- **Health** — Supplements, fitness, weight loss, wellness
+- **Wealth** — Finance, investing, crypto, wealth-building
+- **BizOpp** — Business opportunities, courses, franchises
+- **Relationship** — Dating, marriage, social skills
+- **Survival** — Preparedness, self-defense, homesteading
+- **Other** — Uncategorized or mixed verticals
+
+### How to Filter by Niche
+
+1. Click the **Niche** dropdown in the filters bar
+2. Select one of the 6 niches or "All Niches"
+3. Feed updates instantly to show only matching ads
+
+<Info>
+Niche classification is automatic based on ad copy, offer name, and advertiser metadata. It uses keyword matching and network signals.
+</Info>
+
+## Network Filter
+
+Networks identify the affiliate platform or network:
+
+### Available Networks
+
+- **ClickBank** — Large digital marketplace
+- **Digistore24** — European digital products platform
+- **BuyGoods** — Ecommerce and physical products network
+- **MaxWeb** — Global affiliate network
+- **WarriorPlus** — Digital marketing and IM offers
+- **Other** — Unknown or unclassified networks
+
+### How to Filter by Network
+
+1. Click the **Network** dropdown
+2. Select a specific network or "All Networks"
+3. Results narrow to ads from that platform
+
+<Note>
+Network detection uses domain analysis from landing pages, offer names, and advertiser patterns. Some ads may be classified as "Other" if the network is unclear.
+</Note>
+
+## Status Filter
+
+Status shows whether an ad is currently running:
+
+- **Active** — Ad is live and currently being served
+- **Inactive** — Ad is no longer running (pulled or paused)
+
+### Why Status Matters
+
+- **Active ads** — Current campaigns; may still be profitable
+- **Inactive ads** — Historical data; good for research but may be outdated
+- **Long-inactive proven ads** — Often indicate saturated markets or compliance issues
+
+### How to Filter by Status
+
+1. Click the **Status** dropdown
+2. Choose "Active", "Inactive", or "All Status"
+3. Feed refreshes with status-filtered results
+
+<Info>
+Status is updated periodically from Facebook Ad Library. An ad may go inactive if the advertiser pauses it, Facebook removes it, or the campaign ends.
+</Info>
+
+## Performance Bucket Filter
+
+Performance buckets classify ads by longevity and profitability signals:
+
+### Bucket Definitions
+
+<Steps>
+  <Step title="New (0-14 days)">
+    **Active ads** that have been running 14 days or less. Testing phase — profitability unknown.
+  </Step>
+  <Step title="Promising (7-29 days)">
+    **Active ads** running 7-29 days. Early traction — likely gaining momentum.
+  </Step>
+  <Step title="Profitable (30-59 days active, 60+ inactive)">
+    **Active ads** running 30-59 days OR **inactive ads** that ran 60+ days. Validated offers with proven conversion.
+  </Step>
+  <Step title="Proven (60+ days active, 180+ inactive)">
+    **Active ads** running 60+ days OR **inactive ads** that ran 180+ days. Long-term winners — highly profitable.
+  </Step>
+</Steps>
+
+<Warning>
+Performance buckets use multi-signal classification (status, days running, creative count, video presence). The server applies a lightweight filter; the client refines classification for accuracy.
+</Warning>
+
+### How to Filter by Performance
+
+1. Click the **Performance** dropdown
+2. Select a bucket (All, New, Promising, Profitable, Proven)
+3. Feed updates to show only ads matching that performance tier
+
+<Note>
+When a performance bucket is active, the feed automatically sorts by "Updated At" (descending) to show the most recently refreshed ads first. The days running sort is disabled because the bucket itself defines the days range.
+</Note>
+
+## Search Filter
+
+Search performs a full-text query across:
+
+- **Offer name** — Product or service name
+- **Advertiser** — Company or brand running the ad
+- **Ad copy** — Full ad text body
+
+### How to Search
+
+<Steps>
+  <Step title="Click Search Bar">
+    Locate the search input at the top of the dashboard
+  </Step>
+  <Step title="Type Keywords">
+    Enter any term (offer name, advertiser, product keyword)
+  </Step>
+  <Step title="Debounced Query">
+    Results update automatically after 300ms pause in typing
+  </Step>
+</Steps>
+
+<Info>
+Search is case-insensitive and uses SQL `ILIKE` with wildcard matching. Partial words are matched (e.g., "keto" finds "Keto Diet", "Ketogenic", "Keto Coffee").
+</Info>
+
+### Search Tips
+
+- **Be specific** — "weight loss" returns thousands; "Resurge" narrows to one product
+- **Use brand names** — Search by advertiser to find all ads from a company
+- **Combine with filters** — Search "supplement" + Niche=Health + Status=Active
+- **Try variations** — "BizOpp", "business opportunity", "entrepreneur"
+
+## Combining Filters
+
+All filters work together:
+
+1. Select **Niche = Health**
+2. Select **Network = ClickBank**
+3. Select **Status = Active**
+4. Select **Performance = Proven**
+5. Type "supplement" in search
+
+**Result:** Active ClickBank health supplement ads that have run 60+ days and mention "supplement" in copy.
+
+<Note>
+Filters are applied server-side when possible. Niche and Network filters sometimes use client-side processing to avoid database timeouts (expensive regex operations).
+</Note>
+
+## Filter State Persistence
+
+### Per-Scope State
+
+Each feed scope (All, Saved, Projects) maintains independent filter state:
+
+- Switching from **All** to **Saved** resets filters
+- Each project remembers its own filter settings
+- Returning to a scope restores previous filters
+
+### URL Sync
+
+Filter state is NOT synced to URL params. Refreshing the page resets all filters to defaults:
+
+- **Niche:** All Niches
+- **Network:** All Networks
+- **Status:** All Status
+- **Performance:** All
+- **Search:** Empty
+- **Sort:** Days Running (desc)
+
+## Filter Indicators
+
+Active filters show visual cues:
+
+- **Badge count** — Number in top-right of filters icon (mobile)
+- **Dropdown state** — Selected option shown in desktop dropdowns
+- **Clear button** — Visible when filters are active (resets all)
+
+<Info>
+The active filter count includes non-default niche, network, status, performance, and sort settings. Search is not counted in the badge.
+</Info>
+
+## Mobile Filters
+
+On mobile devices:
+
+1. Tap the **filter icon** (sliders) in the top bar
+2. A bottom sheet slides up with all filter controls
+3. Select options and tap outside to close
+4. Active filter count badge appears on the icon
+
+<Note>
+Mobile filter sheet includes sort controls (desktop shows these in column headers).
+</Note>
+
+## Performance Considerations
+
+### Server-Side Filtering
+
+Most filters run on the database:
+
+- **Search** — `ILIKE` query on indexed columns
+- **Status** — Direct column match
+- **Performance** — Days running range filter
+
+### Client-Side Filtering
+
+Niche and Network filters may run client-side:
+
+- **Why:** Database classification uses expensive regex functions
+- **How:** Fetch ad IDs in chunks, probe for matches, filter in JS
+- **Tradeoff:** Avoids statement timeouts, but slower for large result sets
+
+<Warning>
+If you apply Niche or Network filters and see slow loading, the system is scanning ad chunks to avoid database timeouts. This is expected behavior.
+</Warning>
+
+## Clearing Filters
+
+Reset all filters to defaults:
+
+1. Click the **Reset** or **Clear Filters** button (if visible)
+2. Or manually change each dropdown back to "All..."
+3. Clear search bar by deleting text
+
+<Info>
+Clearing filters does NOT reset sort. To reset sort, click a column header or select the default sort from the mobile filter sheet.
+</Info>
+
+## Common Filter Workflows
+
+### Find Proven Health Offers
+
+1. Niche = **Health**
+2. Performance = **Proven**
+3. Status = **Active**
+4. Sort by **Days Running** (desc)
+
+### Research BizOpp on ClickBank
+
+1. Niche = **BizOpp**
+2. Network = **ClickBank**
+3. Status = **Active**
+4. Search = (leave empty or add keyword)
+
+### Discover New Promising Ads
+
+1. Performance = **Promising**
+2. Status = **Active**
+3. Sort by **Updated At** (desc)
+
+## Related Features
+
+<CardGroup cols={2}>
+  <Card title="Ad Feed" icon="table-list" href="/features/ad-feed">
+    Learn about the main feed interface
+  </Card>
+  <Card title="Saved Ads" icon="bookmark" href="/features/saved-ads">
+    Filtering works in Saved scope too
+  </Card>
+</CardGroup>

@@ -1,0 +1,388 @@
+---
+title: Monitoring & Observability
+description: Track application health, user activity, and operational metrics across Vercel and Supabase
+---
+
+AdRecon's production monitoring spans Vercel serverless functions, Supabase database metrics, and custom rate limiting logs.
+
+## Monitoring Stack
+
+<CardGroup cols={2}>
+  <Card title="Vercel Logs" icon="server">
+    Function execution logs, deployment history, and edge network metrics
+  </Card>
+  <Card title="Supabase Metrics" icon="database">
+    Query performance, connection pools, RLS policy hits, and storage usage
+  </Card>
+  <Card title="Admin Dashboard" icon="chart-line">
+    Real-time user stats, saved ads, projects, and feed health
+  </Card>
+  <Card title="Rate Limit Logs" icon="gauge">
+    Page Ripper usage tracking via `page_rip_log` table
+  </Card>
+</CardGroup>
+
+## Vercel Monitoring
+
+### Function Logs
+
+Access real-time serverless function logs in the Vercel dashboard:
+
+<Steps>
+  <Step title="Navigate to Project Logs">
+    Go to **Vercel Dashboard** → **Your Project** → **Logs**
+  </Step>
+
+  <Step title="Filter by Function">
+    Use the function filter to isolate specific endpoints:
+    - `/api/download-page` — Page Ripper captures
+    - `/api/admin/users` — Admin user management
+    - `/api/ad-media` — Media proxy requests
+    - `/api/admin/scrape` — Admin scraping operations
+    - `/api/landing-ripper/webhook` — Webhook events
+  </Step>
+
+  <Step title="Search Error Patterns">
+    Filter logs by severity:
+    - **Error**: Function threw an exception
+    - **Warning**: Non-critical issues (rate limits, timeouts)
+    - **Info**: Standard execution logs
+  </Step>
+</Steps>
+
+### Key Metrics
+
+Vercel provides these critical metrics per function:
+
+- **Invocation count**: Total requests per time window
+- **Error rate**: Percentage of failed invocations
+- **Duration (p50, p95, p99)**: Response time percentiles
+- **Memory usage**: Peak RAM consumption
+- **Timeout rate**: Functions exceeding max duration
+
+<Note>
+  The `/api/download-page` function has a 120-second timeout (configured in `vercel.json:8`). Monitor timeout rates — values above 5% indicate sites with heavy lazy-loading or slow networks.
+</Note>
+
+### Function Timeout Configuration
+
+These functions have extended timeouts due to expensive operations:
+
+```json vercel.json
+{
+  "functions": {
+    "api/download-page.js": {
+      "maxDuration": 120
+    },
+    "api/admin/scrape.js": {
+      "maxDuration": 60
+    },
+    "api/landing-ripper/jobs.js": {
+      "maxDuration": 60
+    },
+    "api/landing-ripper/webhook.js": {
+      "maxDuration": 120
+    },
+    "api/landing-ripper/download/[token].js": {
+      "maxDuration": 60
+    }
+  }
+}
+```
+
+<Info>
+  Monitor these functions closely — hitting the max duration triggers a 504 Gateway Timeout and burns execution time budget.
+</Info>
+
+## Supabase Monitoring
+
+### Database Metrics
+
+Access Supabase metrics in the project dashboard:
+
+<Steps>
+  <Step title="Open Database Reports">
+    **Supabase Dashboard** → **Your Project** → **Database** → **Reports**
+  </Step>
+
+  <Step title="Monitor Query Performance">
+    Track slow queries:
+    - **Top slow queries**: Queries exceeding 100ms
+    - **Most frequent queries**: High-traffic feed lookups
+    - **Index usage**: Verify indexes are hit for `ads_feed_v2` scans
+  </Step>
+
+  <Step title="Check Connection Pool">
+    Monitor active connections:
+    - **Active connections**: Current open sessions
+    - **Idle connections**: Pooled but unused
+    - **Max connections**: Hard limit (default: 60 for free tier)
+  </Step>
+</Steps>
+
+### Critical Tables to Monitor
+
+<CodeGroup>
+```sql ads_feed_v2 (Main Feed)
+-- Monitor row count growth
+SELECT COUNT(*) FROM ads_feed_v2;
+
+-- Check most recent ad ingestion timestamp
+SELECT MAX(ad_delivery_start_time) FROM ads_feed_v2;
+```
+
+```sql user_saved_ads (Saved Items)
+-- Total saved ads across all users
+SELECT COUNT(*) FROM user_saved_ads;
+
+-- Per-user saved ad distribution
+SELECT user_id, COUNT(*) as saved_count
+FROM user_saved_ads
+GROUP BY user_id
+ORDER BY saved_count DESC
+LIMIT 10;
+```
+
+```sql page_rip_log (Rate Limiting)
+-- Recent rip activity (15-minute window)
+SELECT user_id, COUNT(*) as rip_count
+FROM page_rip_log
+WHERE created_at >= NOW() - INTERVAL '15 minutes'
+GROUP BY user_id
+ORDER BY rip_count DESC;
+```
+</CodeGroup>
+
+### RLS Policy Performance
+
+Row-Level Security (RLS) policies can impact query performance. Monitor policy hit rates:
+
+```sql
+-- Check if queries are scanning full tables despite RLS
+EXPLAIN ANALYZE
+SELECT * FROM user_saved_ads
+WHERE user_id = 'some-user-id';
+```
+
+Look for:
+- **Index Scan** (good) vs **Seq Scan** (bad)
+- **Rows Removed by Filter** — high values indicate missing indexes
+
+<Info>
+  If `user_saved_ads` queries show sequential scans, verify the `user_id` column has an index.
+</Info>
+
+## Admin Dashboard Stats
+
+The admin dashboard (`/admin` or `/app/admin`) provides real-time operational metrics.
+
+### Available Metrics
+
+Accessed via `GET /api/admin/users`, the admin API returns:
+
+```json Admin Stats Response
+{
+  "stats": {
+    "totalUsers": 142,
+    "adminUsers": 3,
+    "recentlyActiveUsers7d": 38,
+    "confirmedUsers": 128,
+    "savedAds": 1847,
+    "projects": 93,
+    "indexedAds": 45203
+  }
+}
+```
+
+<Note>
+  These stats are cached for **60 seconds** (see `api/admin/users.js:21`) to reduce database load during repeated admin dashboard views.
+</Note>
+
+### Metric Definitions
+
+- **totalUsers**: All registered accounts (confirmed + unconfirmed)
+- **adminUsers**: Users with `app_metadata.user_type = 'admin'`
+- **recentlyActiveUsers7d**: Users with `last_sign_in_at` within 7 days
+- **confirmedUsers**: Users with `email_confirmed_at` set
+- **savedAds**: Total rows in `user_saved_ads` table
+- **projects**: Total rows in `user_projects` table
+- **indexedAds**: Total rows in `ads_feed_v2` view
+
+### Cache Invalidation
+
+The admin API caches two datasets:
+
+<CodeGroup>
+```javascript User List Cache
+// Cached for 15 seconds
+const USER_CACHE_TTL_MS = 15_000;
+
+// Invalidated on user mutations (PATCH, DELETE)
+invalidateUserCache();
+```
+
+```javascript Stats Cache
+// Cached for 60 seconds
+const STATS_CACHE_TTL_MS = 60_000;
+
+// Invalidated on user mutations
+invalidateUserCache(); // Also clears stats
+```
+</CodeGroup>
+
+Cache invalidation happens automatically when:
+- Admin promotes/demotes a user (`PATCH /api/admin/users`)
+- Admin deletes a user (`DELETE /api/admin/users`)
+
+## Page Ripper Rate Limiting
+
+The Page Ripper feature includes per-user rate limiting to prevent abuse.
+
+### Rate Limit Configuration
+
+Defined in `api/download-page.js:52-53`:
+
+```javascript
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MINUTES = 15;
+```
+
+This allows **10 page captures per user per 15-minute window**.
+
+### Monitoring Rate Limits
+
+Query recent activity:
+
+```sql page_rip_log Analysis
+-- Users hitting rate limit in last 15 minutes
+SELECT user_id, COUNT(*) as rip_count
+FROM page_rip_log
+WHERE created_at >= NOW() - INTERVAL '15 minutes'
+GROUP BY user_id
+HAVING COUNT(*) >= 10
+ORDER BY rip_count DESC;
+```
+
+<Info>
+  The rate limiter **fails open** — if the `page_rip_log` table is missing or queries error, requests proceed without rate limiting (see `api/download-page.js:249`).
+</Info>
+
+### Rate Limit Response
+
+When a user exceeds the limit, the API returns:
+
+```json 429 Too Many Requests
+{
+  "error": "Rate limit exceeded. Maximum 10 page captures per 15 minutes."
+}
+```
+
+HTTP headers:
+- `Retry-After: 900` (15 minutes in seconds)
+
+### Historical Analysis
+
+Track Page Ripper usage trends:
+
+```sql Historical Rip Activity
+-- Daily rip volume (last 30 days)
+SELECT
+  DATE(created_at) as date,
+  COUNT(*) as total_rips,
+  COUNT(DISTINCT user_id) as unique_users
+FROM page_rip_log
+WHERE created_at >= NOW() - INTERVAL '30 days'
+GROUP BY DATE(created_at)
+ORDER BY date DESC;
+```
+
+## Error Tracking Patterns
+
+### Common Error Signatures
+
+<CodeGroup>
+```javascript Page Ripper SSRF Block
+// Logged when user attempts to rip internal address
+console.error('[download-page] SSRF attempt blocked:', hostname);
+
+// Response: 400 Bad Request
+// "Requests to private/internal addresses are not allowed."
+```
+
+```javascript Page Ripper Timeout
+// Logged when capture exceeds 110s hard timeout
+console.error('[download-page] Capture error: timeout');
+
+// Response: 504 Gateway Timeout
+// "Page capture timed out: Navigation timeout of 60000ms exceeded"
+```
+
+```javascript Admin API User Not Found
+// Logged when admin tries to modify non-existent user
+console.error('[admin/users] User not found:', userId);
+
+// Response: 404 Not Found
+// {"error": "User not found."}
+```
+</CodeGroup>
+
+### Logging Best Practices
+
+All serverless functions follow this pattern:
+
+```javascript
+try {
+  // ... operation ...
+} catch (error) {
+  const message = error instanceof Error
+    ? error.message
+    : 'Unknown error';
+  console.error('[function-name] Context:', message);
+  json(res, 500, { error: message });
+}
+```
+
+Error messages include:
+- **Context prefix**: `[function-name]` for easy log filtering
+- **Stack traces**: Automatically captured by Vercel
+- **User-facing message**: Sanitized error returned in JSON response
+
+## Alerts and Thresholds
+
+Recommended monitoring alerts:
+
+<Steps>
+  <Step title="Vercel Function Timeouts">
+    Alert when `/api/download-page` timeout rate exceeds **10%** over 1 hour.
+  </Step>
+
+  <Step title="Supabase Connection Pool">
+    Alert when active connections exceed **80%** of max connections.
+  </Step>
+
+  <Step title="Feed Staleness">
+    Alert when `MAX(ad_delivery_start_time)` in `ads_feed_v2` is older than **24 hours**.
+  </Step>
+
+  <Step title="Admin API Error Rate">
+    Alert when `/api/admin/users` error rate exceeds **5%** over 15 minutes.
+  </Step>
+</Steps>
+
+<Note>
+  Vercel Pro and Enterprise plans support custom alerting via integrations with Datadog, New Relic, and other APM tools.
+</Note>
+
+## Performance Baselines
+
+Normal operating ranges:
+
+- **`/api/ad-media` (p95)**: < 200ms
+- **`/api/admin/users` (p95)**: < 500ms (uncached), < 50ms (cached)
+- **`/api/download-page` (p50)**: 15-30 seconds
+- **`ads_feed_v2` query (p95)**: < 300ms
+- **`user_saved_ads` insert**: < 50ms
+
+<Info>
+  Baseline times assume healthy Supabase instance. If p95 query times exceed 1 second, investigate missing indexes or RLS policy overhead.
+</Info>

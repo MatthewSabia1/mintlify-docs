@@ -1,0 +1,120 @@
+{
+  "projectType": "saas",
+  "projectName": "AdRecon",
+  "projectDescription": "Ad intelligence platform for tracking and analyzing affiliate network creatives across ClickBank, Digistore24, BuyGoods, and MaxWeb",
+  "theme": "almond",
+  "primaryColor": "#7C3AED",
+  "lightColor": "#A78BFA",
+  "darkColor": "#5B21B6",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "architecture"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/ad-feed",
+              "features/saved-ads",
+              "features/projects",
+              "features/page-ripper",
+              "features/filters"
+            ]
+          },
+          {
+            "group": "User Management",
+            "pages": [
+              "user-management/authentication",
+              "user-management/admin-dashboard",
+              "user-management/profile"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/fanbasis",
+              "integrations/supabase"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/overview",
+              "api/ad-media",
+              "api/download-page",
+              "api/admin-users",
+              "api/fanbasis"
+            ]
+          },
+          {
+            "group": "Database",
+            "pages": [
+              "database/schema",
+              "database/feeds",
+              "database/security"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Deployment",
+        "groups": [
+          {
+            "group": "Setup",
+            "pages": [
+              "deployment/local-development",
+              "deployment/environment-variables",
+              "deployment/vercel"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "deployment/build-process",
+              "deployment/monitoring"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time ad intelligence feed with 100k+ tracked creatives",
+    "Multi-scope viewing (All Ads, Saved Ads, Project-based organization)",
+    "Advanced filtering by niche, network, status, and performance",
+    "Headless browser-based landing page capture (Page Ripper)",
+    "User authentication via Magic Link and Google OAuth",
+    "Admin dashboard for user and subscription management",
+    "Fanbasis integration for automated user provisioning",
+    "Project-based ad organization system",
+    "Media proxy for Facebook/Instagram creative assets",
+    "Performance analytics and ad lifecycle tracking"
+  ],
+  "publicApiSurface": [
+    "GET /api/ad-media - Media proxy endpoint",
+    "POST /api/download-page - Page Ripper capture endpoint",
+    "GET /api/admin/users - List and search users",
+    "PATCH /api/admin/users - Update user roles",
+    "DELETE /api/admin/users - Delete user accounts",
+    "POST /api/admin/users - Send password reset emails",
+    "GET /api/admin/fanbasis - Fanbasis admin actions",
+    "POST /api/admin/fanbasis - Execute Fanbasis operations",
+    "POST /api/fanbasis/webhook - Fanbasis webhook handler",
+    "public.ads_feed_v2 - Main ad feed view",
+    "public.user_saved_ads_feed_v1 - User saved ads view",
+    "public.user_project_ads_feed_v1 - Project-scoped ads view"
+  ]
+}
