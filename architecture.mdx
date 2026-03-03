@@ -1,6 +1,7 @@
 ---
-title: Technical Architecture
-description: How AdRecon is built with Vercel, Supabase, React, and serverless APIs
+title: "Technical Architecture"
+description: "How AdRecon is built with Vercel, Supabase, React, and serverless APIs"
+hidden: true
 ---
 
 ## Overview
@@ -19,27 +20,24 @@ AdRecon V2 is a modern SaaS platform built with a **Vercel-hosted static site** 
 ## Stack Components
 
 <CardGroup cols={2}>
-  <Card title="Frontend" icon="react">
+  <Card icon="react" title="Frontend">
     - **Vite** + **React** + **TypeScript**
     - **Tailwind CSS** for styling
     - **Framer Motion** for animations
     - **Lucide React** icons
     - **Sonner** for toast notifications
   </Card>
-
-  <Card title="Backend" icon="database">
+  <Card icon="database" title="Backend">
     - **Supabase Postgres** (views + tables with RLS)
     - **Supabase Auth** (Magic Link + Google OAuth)
     - **Vercel Serverless Functions** (Node.js)
   </Card>
-
-  <Card title="Hosting" icon="server">
+  <Card icon="server" title="Hosting">
     - **Vercel** static site hosting
     - **Vercel Edge Network** for global distribution
     - SPA rewrites via `vercel.json`
   </Card>
-
-  <Card title="Capture Pipeline" icon="download">
+  <Card icon="download" title="Capture Pipeline">
     - **Puppeteer Core** + **@sparticuz/chromium**
     - **SingleFile** for HTML snapshots
     - **Archiver** for ZIP packaging
@@ -66,7 +64,6 @@ AdRecon is deployed as a **Vercel static site** built from the `dist/` directory
     /index.html    → /app/index.html
     ```
   </Tab>
-
   <Tab title="Authenticated Routes">
     ```
     /app                    → /app/index.html (Dashboard)
@@ -78,7 +75,6 @@ AdRecon is deployed as a **Vercel static site** built from the `dist/` directory
     /profile/:path*         → /app/index.html
     ```
   </Tab>
-
   <Tab title="API Routes">
     ```
     /api/ad-media           → Serverless media proxy
@@ -88,7 +84,6 @@ AdRecon is deployed as a **Vercel static site** built from the `dist/` directory
     /api/download-page      → Page Ripper endpoint
     ```
   </Tab>
-
   <Tab title="Static Assets">
     ```
     /app/assets/:path*      → Vite build output (JS, CSS, images)
@@ -104,11 +99,9 @@ The authentication gate in `src/App.tsx` determines which component renders:
   <Step title="Session Check">
     Supabase client (initialized in `src/lib/supabase.ts`) checks for an active session.
   </Step>
-
   <Step title="Unauthenticated State">
     If no session exists, render the `<Auth>` component (Magic Link + Google OAuth).
   </Step>
-
   <Step title="Authenticated Routing">
     For authenticated users, route to the appropriate view:
 
@@ -139,11 +132,11 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
     ```
 
     This normalized view aggregates raw data from `public.apify_ads_raw` with:
+
     - Fixed network classification (ClickBank, Digistore24, BuyGoods, MaxWeb, Other)
     - Fixed taxonomy classification (Health, Wealth, BizOpp, Relationship, Survival, Other)
     - High-quality media URL prioritization
   </Tab>
-
   <Tab title="Saved Ads">
     **Data Source**: `public.user_saved_ads_feed_v1`
 
@@ -158,7 +151,6 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
 
     This view joins `user_saved_ads` with `ads_feed_v2` and enforces RLS filtering by `auth.uid()`.
   </Tab>
-
   <Tab title="Project Ads">
     **Data Source**: `public.user_project_ads_feed_v1`
 
@@ -181,7 +173,6 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
   <Step title="Save Action">
     User clicks **Save** in the Ad Modal.
   </Step>
-
   <Step title="Database Insert">
     Frontend calls `saveAd(userId, adArchiveId)` from `src/lib/savedAds.ts`:
 
@@ -193,7 +184,6 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
 
     Composite key `(user_id, ad_archive_id)` prevents duplicates.
   </Step>
-
   <Step title="RLS Enforcement">
     Supabase RLS policy ensures `auth.uid() = user_id`, isolating saved ads per user.
   </Step>
@@ -212,7 +202,6 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
       .insert({ user_id: userId, name: projectName });
     ```
   </Step>
-
   <Step title="Assign Ad to Project">
     User assigns a saved ad to one or more projects:
 
@@ -222,7 +211,6 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
       .insert({ user_id: userId, ad_archive_id: adId, project_id: projectId });
     ```
   </Step>
-
   <Step title="Query Project Feed">
     Dashboard queries `user_project_ads_feed_v1` filtered by `project_id`.
   </Step>
@@ -235,12 +223,14 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
 **Purpose**: Secure image proxy for ad creatives to avoid CORS and mixed-content issues.
 
 **Implementation**:
+
 - Vercel serverless function (`api/ad-media.js`)
 - Fetches external image URLs and returns the binary response
 - Passes through `Content-Type` headers
 - No authentication required (public endpoint)
 
 **Usage**:
+
 ```html
 <img src="/api/ad-media?url=https://example.com/creative.jpg" />
 ```
@@ -250,6 +240,7 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
 **Purpose**: Admin-only endpoint for user CRUD operations.
 
 **Implementation**:
+
 - Vercel serverless function (`api/admin/users.js`)
 - Requires `SUPABASE_SERVICE_ROLE_KEY` for elevated database access
 - Validates admin status via `auth.users.raw_app_meta_data.user_type`
@@ -264,6 +255,7 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
 **Purpose**: Admin controls for Fanbasis product sync and webhook registration.
 
 **Implementation**:
+
 - Vercel serverless function
 - Requires `FANBASIS_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 - Admin-gated actions for:
@@ -277,6 +269,7 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
 **Purpose**: Receive and log Fanbasis payment events.
 
 **Implementation**:
+
 - Validates webhook signature using secret from `public.integration_secrets`
 - Logs events to `public.fanbasis_webhook_log`
 - Handles refund/dispute events by revoking user access
@@ -293,7 +286,6 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
     - Validate rate limit: 10 captures per user per 15 minutes (logged in `page_rip_log`)
     - Check SSRF safety: hostname blocklist + DNS verification
   </Step>
-
   <Step title="Headless Capture">
     - Launch Puppeteer with `@sparticuz/chromium`
     - Navigate to target URL with 110-second AbortController timeout
@@ -301,12 +293,10 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
     - Capture HTML using SingleFile
     - Intercept network resources (CSS, JS, images, fonts, media)
   </Step>
-
   <Step title="Resource Packaging">
     - Package `page.html` + `assets/` into a ZIP archive using `archiver`
     - Enforce caps: 100 MB total, 500 resources max
   </Step>
-
   <Step title="Response">
     - Return ZIP binary directly in HTTP response
     - No storage bucket, no job queue — entire lifecycle in one request
@@ -322,18 +312,18 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
 ### Core Tables and Views
 
 <AccordionGroup>
-  <Accordion title="public.apify_ads_raw" icon="table">
+  <Accordion icon="table" title="public.apify_ads_raw">
     **Type**: Table
-    
+
     Raw ad data ingested from Apify scrapers. Source table for `ads_feed_v2`.
 
     **RLS**: Enabled, `authenticated` role has read access.
   </Accordion>
-
-  <Accordion title="public.ads_feed_v2" icon="eye">
+  <Accordion icon="eye" title="public.ads_feed_v2">
     **Type**: View
-    
+
     Normalized ad feed with:
+
     - Fixed network classification
     - Fixed taxonomy classification
     - High-quality media URL prioritization
@@ -341,74 +331,66 @@ AdRecon queries Supabase directly from the frontend using three feed scopes:
 
     **Queried by**: Dashboard (`all` scope)
   </Accordion>
-
-  <Accordion title="public.user_saved_ads" icon="bookmark">
+  <Accordion icon="bookmark" title="public.user_saved_ads">
     **Type**: Table
-    
+
     Per-user saved ads with composite key `(user_id, ad_archive_id)`.
 
     **RLS**: `auth.uid() = user_id` for strict user isolation.
 
     **Used by**: Save/unsave operations (`src/lib/savedAds.ts`)
   </Accordion>
-
-  <Accordion title="public.user_projects" icon="folder">
+  <Accordion icon="folder" title="public.user_projects">
     **Type**: Table
-    
+
     Project folders owned by users.
 
     **RLS**: `auth.uid() = user_id`
 
     **Used by**: Project CRUD operations (`src/lib/projects.ts`)
   </Accordion>
-
-  <Accordion title="public.user_saved_ad_projects" icon="link">
+  <Accordion icon="link" title="public.user_saved_ad_projects">
     **Type**: Table
-    
+
     Many-to-many links between saved ads and projects.
 
     **RLS**: `auth.uid() = user_id`
 
     **Used by**: Project assignment logic
   </Accordion>
-
-  <Accordion title="public.user_saved_ads_feed_v1" icon="eye">
+  <Accordion icon="eye" title="public.user_saved_ads_feed_v1">
     **Type**: View
-    
+
     Joins `user_saved_ads` + `ads_feed_v2` for saved-only feed.
 
     **Queried by**: Dashboard (`saved` scope)
   </Accordion>
-
-  <Accordion title="public.user_project_ads_feed_v1" icon="eye">
+  <Accordion icon="eye" title="public.user_project_ads_feed_v1">
     **Type**: View
-    
+
     Joins `user_saved_ad_projects` → `user_saved_ads` → `ads_feed_v2` for project-scoped feed.
 
     **Queried by**: Dashboard (`project` scope)
   </Accordion>
-
-  <Accordion title="public.page_rip_log" icon="clock">
+  <Accordion icon="clock" title="public.page_rip_log">
     **Type**: Table
-    
+
     Rate-limiting log for Page Ripper captures.
 
     **Access**: Service role only (bypasses RLS)
 
     **Used by**: `/api/download-page` for 10 captures / 15 min enforcement
   </Accordion>
-
-  <Accordion title="public.fanbasis_webhook_log" icon="webhook">
+  <Accordion icon="webhook" title="public.fanbasis_webhook_log">
     **Type**: Table
-    
+
     Logs all Fanbasis webhook events for audit trail.
 
     **Used by**: `/api/fanbasis/webhook`
   </Accordion>
-
-  <Accordion title="public.integration_secrets" icon="key">
+  <Accordion icon="key" title="public.integration_secrets">
     **Type**: Table
-    
+
     Encrypted storage for third-party integration secrets (e.g., Fanbasis webhook secret).
 
     **Access**: Service role only
@@ -443,7 +425,6 @@ All user-scoped tables enforce RLS policies:
     USING (auth.uid() = user_id);
     ```
   </Tab>
-
   <Tab title="user_projects">
     ```sql
     CREATE POLICY "Users can manage own projects"
@@ -452,7 +433,6 @@ All user-scoped tables enforce RLS policies:
     USING (auth.uid() = user_id);
     ```
   </Tab>
-
   <Tab title="user_saved_ad_projects">
     ```sql
     CREATE POLICY "Users can manage own project links"
@@ -489,11 +469,9 @@ The `/api/download-page` endpoint implements multi-layer SSRF protection:
   <Step title="Hostname Blocklist">
     Reject private/internal IP ranges, localhost, and metadata endpoints.
   </Step>
-
   <Step title="DNS Resolution Check">
     Resolve hostname to IP and re-validate against the blocklist.
   </Step>
-
   <Step title="Post-Redirect Verification">
     After Puppeteer navigation, verify the final URL didn't redirect to a blocked host.
   </Step>
@@ -509,15 +487,12 @@ The `/api/download-page` endpoint implements multi-layer SSRF protection:
   <Step title="Clean Output">
     Remove and recreate `dist/` directory.
   </Step>
-
   <Step title="Build SPA">
     Run `npm run build:app` (Vite build) → outputs to `dist/app/`.
   </Step>
-
   <Step title="Duplicate Shell">
     Copy `dist/app/index.html` to `dist/index.html` so `/` and `/app` share the same SPA entry.
   </Step>
-
   <Step title="Copy Favicon">
     Copy `favicon.ico` if present.
   </Step>
@@ -537,7 +512,6 @@ AdRecon uses a strict 2-lane deployment model:
     - Deploys to Vercel Preview environment
     - Script: `./scripts/deploy-vercel.sh staging`
   </Tab>
-
   <Tab title="Production">
     ```bash
     npm run deploy:production
@@ -655,19 +629,16 @@ graph TB
 ## Performance Considerations
 
 <CardGroup cols={2}>
-  <Card title="Direct Database Queries" icon="bolt">
+  <Card icon="bolt" title="Direct Database Queries">
     Frontend queries Supabase directly (no API middleware) for minimal latency. RLS enforcement happens at the database layer.
   </Card>
-
-  <Card title="Media Proxy Caching" icon="image">
+  <Card icon="image" title="Media Proxy Caching">
     `/api/ad-media` can be extended with CDN caching headers to reduce external fetch frequency.
   </Card>
-
-  <Card title="Feed Pagination" icon="list">
+  <Card icon="list" title="Feed Pagination">
     Dashboard implements offset-based pagination with configurable page size to manage large result sets.
   </Card>
-
-  <Card title="Serverless Cold Starts" icon="snowflake">
+  <Card icon="snowflake" title="Serverless Cold Starts">
     Page Ripper and admin endpoints may experience cold starts (1-3 seconds). Consider warming functions for critical paths.
   </Card>
 </CardGroup>
@@ -675,18 +646,10 @@ graph TB
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card
-    title="Back to Introduction"
-    icon="house"
-    href="/introduction"
-  >
+  <Card icon="house" href="/introduction" title="Back to Introduction">
     Return to the platform overview
   </Card>
-  <Card
-    title="Quickstart Guide"
-    icon="rocket"
-    href="/quickstart"
-  >
+  <Card icon="rocket" href="/quickstart" title="Quickstart Guide">
     Learn how to use AdRecon as an end user
   </Card>
 </CardGroup>

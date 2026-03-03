@@ -23,31 +23,32 @@
     "tabs": [
       {
         "tab": "Documentation",
-        "groups": [
+        "pages": [
           {
             "group": "Get Started",
             "pages": [
               "introduction",
               "quickstart",
-              "architecture"
+              "user-management/profile"
             ]
           },
+          "architecture",
           {
             "group": "Core Features",
             "pages": [
               "features/ad-feed",
+              "features/page-ripper",
               "features/saved-ads",
               "features/projects",
-              "features/page-ripper",
               "features/filters"
             ]
           },
           {
             "group": "User Management",
+            "hidden": true,
             "pages": [
               "user-management/authentication",
-              "user-management/admin-dashboard",
-              "user-management/profile"
+              "user-management/admin-dashboard"
             ]
           },
           {

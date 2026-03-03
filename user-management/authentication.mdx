@@ -1,6 +1,7 @@
 ---
-title: Authentication
-description: Sign in to AdRecon using Magic Link or Google OAuth, with Fanbasis purchase-based provisioning and role-based access control.
+title: "Authentication"
+description: "Sign in to AdRecon using Magic Link or Google OAuth, with Fanbasis purchase-based provisioning and role-based access control."
+hidden: true
 ---
 
 AdRecon uses Supabase Auth for identity management with two authentication methods: Magic Link email sign-in and Google OAuth. Access is controlled through invite-only provisioning via Fanbasis purchases.
@@ -19,7 +20,7 @@ The primary authentication method for AdRecon is passwordless Magic Link authent
     Click **Send Magic Link** to request a sign-in link. The system will only send a link if an account exists for that email address.
   </Step>
   <Step title="Check your inbox">
-    If your email is registered, you'll receive a message: *"Check your inbox — if there's an account for this email, a sign-in link is on its way."*
+    If your email is registered, you'll receive a message: _"Check your inbox — if there's an account for this email, a sign-in link is on its way."_
   </Step>
   <Step title="Click the magic link">
     Open the email and click the sign-in link. You'll be redirected to `/app` and automatically authenticated.
@@ -59,7 +60,7 @@ Google OAuth is supported as an alternative authentication provider.
 </Steps>
 
 <Warning>
-  Unauthorized new Google OAuth sign-ups are blocked. The system will sign you out with the message: *"No active subscription found. Please purchase access to sign in."*
+  Unauthorized new Google OAuth sign-ups are blocked. The system will sign you out with the message: _"No active subscription found. Please purchase access to sign in."_
 </Warning>
 
 **New user validation logic** (`App.tsx:218-229`):
@@ -131,10 +132,10 @@ AdRecon uses role-based access control to gate administrative features.
 
 ### User Roles
 
-| Role | Marker | Permissions |
-|---|---|---|
-| **Admin** | `app_metadata.user_type = 'admin'` | Full access to dashboard, profile, and admin panel |
-| **Member** | `app_metadata.user_type = 'member'` or not set | Access to dashboard and profile only |
+| Role       | Marker                                         | Permissions                                        |
+| ---------- | ---------------------------------------------- | -------------------------------------------------- |
+| **Admin**  | `app_metadata.user_type = 'admin'`             | Full access to dashboard, profile, and admin panel |
+| **Member** | `app_metadata.user_type = 'member'` or not set | Access to dashboard and profile only               |
 
 ### Route Protection
 
