@@ -7,7 +7,6 @@
     "light": "#8cfa95",
     "dark": "#255237"
   },
-  "favicon": "/images/Screenshot2026-03-03at6.46.20AM.png",
   "navbar": {
     "primary": {
       "type": "github",
@@ -63,5 +62,8 @@
     "indexing": "all"
   },
   "description": "AdRecon Documentation ",
-  "logo": "/images/adrecon-logo-extrabolditalic.png"
+  "logo": {
+    "light": "/images/adrecon-logo-extrabolditalic.png",
+    "dark": "/images/adrecon-logo-extrabolditalic.png"
+  }
 }
