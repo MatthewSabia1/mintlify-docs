@@ -1,23 +1,28 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "name": "AdRecon",
+  "name": "AdRecon Docs",
   "theme": "almond",
   "colors": {
-    "primary": "#7C3AED",
+    "primary": "#2fde6f",
     "light": "#A78BFA",
-    "dark": "#5B21B6"
+    "dark": "#255237"
   },
   "favicon": "/images/Screenshot2026-03-03at6.46.20AM.png",
   "navbar": {
     "primary": {
       "type": "github",
       "href": "https://github.com/MatthewSabia1/AdRecon"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/MatthewSabia1/AdRecon"
-    }
+    },
+    "links": [
+      {
+        "label": "Login",
+        "href": "https://app.adrecon.com"
+      },
+      {
+        "label": "Contact Support",
+        "href": "https://app.adrecon.com/support"
+      }
+    ]
   },
   "navigation": {
     "tabs": [
@@ -45,5 +50,14 @@
         ]
       }
     ]
+  },
+  "background": {
+    "color": {
+      "dark": "#0d0d14"
+    },
+    "decoration": "grid"
+  },
+  "appearance": {
+    "default": "dark"
   }
 }
