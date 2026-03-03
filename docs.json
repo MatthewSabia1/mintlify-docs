@@ -62,5 +62,6 @@
   "seo": {
     "indexing": "all"
   },
-  "description": "AdRecon Documentation "
+  "description": "AdRecon Documentation ",
+  "logo": "/images/adrecon-logo.svg"
 }

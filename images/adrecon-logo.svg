@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@1,800&amp;display=swap');
+      .ad-text {
+        font-family: 'Inter', 'Arial Black', 'Helvetica Neue', sans-serif;
+        font-weight: 800;
+        font-style: italic;
+        font-size: 82px;
+        letter-spacing: -1px;
+      }
+    </style>
+  </defs>
+  <text x="18" y="88" class="ad-text">
+    <tspan fill="#FFFFFF">Ad</tspan><tspan fill="#22C55E">Recon</tspan>
+  </text>
+</svg>
