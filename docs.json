@@ -62,8 +62,5 @@
     "indexing": "all"
   },
   "description": "AdRecon Documentation ",
-  "logo": {
-    "light": "/images/adrecon-logo-extrabolditalic.png",
-    "dark": "/images/adrecon-logo-extrabolditalic.png"
-  }
+  "logo": "/images/adrecon-logo-extrabolditalic.png"
 }
