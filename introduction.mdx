@@ -1,17 +1,19 @@
 ---
-title: Welcome to AdRecon
-description: Track, analyze, and save winning ad creatives from the world's top affiliate networks
+title: "Welcome to AdRecon"
+description: "Track, analyze, and save winning ad creatives from the world's top affiliate networks"
 ---
 
-<img
-  className="block dark:hidden"
-  src="/images/hero-light.svg"
-  alt="AdRecon Hero Light"
-/>
 <img
   className="hidden dark:block"
   src="/images/hero-dark.svg"
   alt="AdRecon Hero Dark"
+  title="Screenshot2026 03 03at6 33 01AM"
+/>
+<img
+  className="dark:hidden"
+  src="/images/hero-light.svg"
+  alt="AdRecon Hero Light"
+  title="Screenshot2026 03 03at6 33 01AM"
 />
 
 ## What is AdRecon?
@@ -26,18 +28,10 @@ Whether you're a media buyer, affiliate marketer, or creative strategist, AdReco
 - **MaxWeb**
 
 <CardGroup cols={2}>
-  <Card
-    title="Get Started in Minutes"
-    icon="rocket"
-    href="/quickstart"
-  >
+  <Card icon="rocket" href="/quickstart" title="Get Started in Minutes">
     Sign in and start exploring winning creatives immediately
   </Card>
-  <Card
-    title="Technical Architecture"
-    icon="diagram-project"
-    href="/architecture"
-  >
+  <Card icon="diagram-project" href="/architecture" title="Technical Architecture">
     Learn how AdRecon is built on Vercel and Supabase
   </Card>
 </CardGroup>
@@ -45,32 +39,33 @@ Whether you're a media buyer, affiliate marketer, or creative strategist, AdReco
 ## Key Capabilities
 
 <AccordionGroup>
-  <Accordion title="Live Ad Feed" icon="rss">
+  <Accordion icon="rss" title="Live Ad Feed">
     Browse a continuously updated feed of active ads with normalized metadata including:
+
     - Creative images and landing page URLs
     - Network classification (ClickBank, Digistore24, BuyGoods, MaxWeb, Other)
     - Taxonomy classification (Health, Wealth, BizOpp, Relationship, Survival, Other)
     - Affiliate network metadata and product identifiers
   </Accordion>
-
-  <Accordion title="Save & Organize Ads" icon="bookmark">
+  <Accordion icon="bookmark" title="Save & Organize Ads">
     Build your swipe file with:
+
     - One-click save for any creative
     - Project-based organization for campaigns or research
     - Personal saved ad library with instant filtering
     - Per-user isolation with row-level security
   </Accordion>
-
-  <Accordion title="Landing Page Ripper" icon="download">
+  <Accordion icon="download" title="Landing Page Ripper">
     Capture complete landing pages for offline analysis:
+
     - Self-contained HTML snapshots using headless Chromium + SingleFile
     - Bundled assets (CSS, JS, images, fonts, media) in a single ZIP download
     - Auto-scroll to trigger lazy-loaded content
     - SSRF protection and rate limiting (10 captures per 15 minutes)
   </Accordion>
-
-  <Accordion title="Multi-Network Coverage" icon="globe">
+  <Accordion icon="globe" title="Multi-Network Coverage">
     AdRecon normalizes data from multiple affiliate networks into a unified feed:
+
     - Consistent schema across all networks
     - High-quality media URL prioritization
     - Automatic classification and tagging
@@ -80,22 +75,22 @@ Whether you're a media buyer, affiliate marketer, or creative strategist, AdReco
 ## Platform Features
 
 <CardGroup cols={3}>
-  <Card title="Real-time Feed" icon="bolt">
+  <Card icon="bolt" title="Real-time Feed">
     Access live ad data directly from Supabase with instant filtering and pagination
   </Card>
-  <Card title="Secure Authentication" icon="shield-halved">
+  <Card icon="shield-halved" title="Secure Authentication">
     Magic link and Google OAuth powered by Supabase Auth
   </Card>
-  <Card title="Project Workspaces" icon="folder">
+  <Card icon="folder" title="Project Workspaces">
     Organize saved ads into projects for campaigns, clients, or research
   </Card>
-  <Card title="Media Proxy" icon="image">
+  <Card icon="image" title="Media Proxy">
     Serverless image proxy for secure creative rendering
   </Card>
-  <Card title="Admin Dashboard" icon="gauge">
+  <Card icon="gauge" title="Admin Dashboard">
     User management, Fanbasis integration, and system controls
   </Card>
-  <Card title="Profile Management" icon="user">
+  <Card icon="user" title="Profile Management">
     Manage your account settings, auth providers, and preferences
   </Card>
 </CardGroup>
@@ -116,18 +111,10 @@ AdRecon prioritizes high-quality media URLs and normalizes raw affiliate network
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card
-    title="Quickstart Guide"
-    icon="circle-play"
-    href="/quickstart"
-  >
+  <Card icon="circle-play" href="/quickstart" title="Quickstart Guide">
     Sign in, view the feed, save your first ad, and create a project
   </Card>
-  <Card
-    title="Architecture Overview"
-    icon="sitemap"
-    href="/architecture"
-  >
+  <Card icon="sitemap" href="/architecture" title="Architecture Overview">
     Understand the Vercel + Supabase stack powering AdRecon
   </Card>
 </CardGroup>
