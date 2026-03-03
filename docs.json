@@ -54,10 +54,13 @@
   "background": {
     "color": {
       "dark": "#0d0d14"
-    },
-    "decoration": "grid"
+    }
   },
   "appearance": {
     "default": "dark"
-  }
+  },
+  "seo": {
+    "indexing": "all"
+  },
+  "description": "AdRecon Documentation "
 }
