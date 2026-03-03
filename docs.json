@@ -23,7 +23,7 @@
     "tabs": [
       {
         "tab": "Documentation",
-        "pages": [
+        "groups": [
           {
             "group": "Get Started",
             "pages": [
@@ -32,7 +32,6 @@
               "user-management/profile"
             ]
           },
-          "architecture",
           {
             "group": "Core Features",
             "pages": [
@@ -41,64 +40,6 @@
               "features/saved-ads",
               "features/projects",
               "features/filters"
-            ]
-          },
-          {
-            "group": "User Management",
-            "hidden": true,
-            "pages": [
-              "user-management/authentication",
-              "user-management/admin-dashboard"
-            ]
-          },
-          {
-            "group": "Integrations",
-            "pages": [
-              "integrations/fanbasis",
-              "integrations/supabase"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "API Reference",
-        "groups": [
-          {
-            "group": "Endpoints",
-            "pages": [
-              "api/overview",
-              "api/ad-media",
-              "api/download-page",
-              "api/admin-users",
-              "api/fanbasis"
-            ]
-          },
-          {
-            "group": "Database",
-            "pages": [
-              "database/schema",
-              "database/feeds",
-              "database/security"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Deployment",
-        "groups": [
-          {
-            "group": "Setup",
-            "pages": [
-              "deployment/local-development",
-              "deployment/environment-variables",
-              "deployment/vercel"
-            ]
-          },
-          {
-            "group": "Operations",
-            "pages": [
-              "deployment/build-process",
-              "deployment/monitoring"
             ]
           }
         ]

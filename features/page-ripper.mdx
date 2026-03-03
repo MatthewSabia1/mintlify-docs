@@ -1,7 +1,7 @@
 ---
-title: 'Page Ripper'
-description: 'Capture full offline snapshots of ad landing pages in one click'
-icon: 'scissors'
+title: "Page Ripper"
+description: "Capture full offline snapshots of ad landing pages in one click"
+icon: "scissors"
 ---
 
 ## Overview
@@ -18,7 +18,7 @@ Page Ripper uses headless browser technology to:
 - **Skip login walls** — Only works for public landing pages (no Facebook/Meta URLs)
 
 <Info>
-Page Ripper runs server-side using headless Chromium. The entire capture happens in one synchronous request — no job queues or background processing.
+  Page Ripper runs server-side using headless Chromium. The entire capture happens in one synchronous request — no job queues or background processing.
 </Info>
 
 ## How to Use Page Ripper
@@ -57,7 +57,7 @@ landing-page-YYYY-MM-DDTHH-MM-SS.zip
 ```
 
 <Note>
-The `page.html` file is self-contained and can be opened directly in a browser without extracting assets. The `assets/` folder contains referenced external resources.
+  The `page.html` file is self-contained and can be opened directly in a browser without extracting assets. The `assets/` folder contains referenced external resources.
 </Note>
 
 ## Landing Page Detection
@@ -87,7 +87,7 @@ You'll see a disabled state or message when:
 - ❌ Another capture is already in progress
 
 <Warning>
-Page Ripper cannot capture Facebook/Instagram pages — these require login and have bot protection. Only public landing pages (external domains) are supported.
+  Page Ripper cannot capture Facebook/Instagram pages — these require login and have bot protection. Only public landing pages (external domains) are supported.
 </Warning>
 
 ## Capture Process Details
@@ -104,7 +104,7 @@ Page Ripper cannot capture Facebook/Instagram pages — these require login and 
 8. **Cleanup** — Browser closed, response streamed to client
 
 <Info>
-The server enforces a 110-second hard timeout. If the page takes longer to capture, you'll receive a 504 timeout error.
+  The server enforces a 110-second hard timeout. If the page takes longer to capture, you'll receive a 504 timeout error.
 </Info>
 
 ### Progress States
@@ -113,19 +113,6 @@ The server enforces a 110-second hard timeout. If the page takes longer to captu
 - **Loading** — Progress bar + status message ("Launching browser...", "Capturing page...")
 - **Success** — Green checkmark + "Landing page ripped" message
 - **Error** — Red error icon + retry button
-
-## Resource Limits
-
-To prevent abuse and ensure performance:
-
-- **100 MB total size** — Captures exceeding this are rejected
-- **500 resources max** — Pages with more than 500 assets are truncated
-- **60s navigation timeout** — Page must load within 60 seconds
-- **110s hard timeout** — Total capture must complete in 110 seconds
-
-<Warning>
-Very large or slow-loading pages may hit resource limits. The capture will complete with available assets, but some files may be skipped.
-</Warning>
 
 ## Rate Limiting
 
@@ -136,49 +123,27 @@ Page Ripper enforces a rate limit:
 - **429 response** — Includes `Retry-After` header with seconds until next slot
 
 <Note>
-Rate limit failures show a toast notification with retry time. The button remains disabled until the window resets.
+  Rate limit failures show a toast notification with retry time. The button remains disabled until the window resets.
 </Note>
-
-## Security & Privacy
-
-### SSRF Protection
-
-The server validates every URL:
-
-1. **Hostname blocklist** — Rejects private IPs, localhost, internal domains
-2. **DNS resolution check** — Verifies domain resolves to public IP
-3. **Post-redirect re-check** — Validates final URL after redirects
-
-### Data Handling
-
-- **No storage** — ZIP is streamed directly to your browser, not stored on server
-- **No logging** — Page content is not logged or persisted
-- **Rate limit only** — Only capture timestamps are stored (for rate limiting)
-- **No credentials** — Browser runs unauthenticated (public pages only)
 
 ## Common Use Cases
 
 <CardGroup cols={2}>
-  <Card title="Funnel Research" icon="chart-line">
+  <Card icon="chart-line" title="Funnel Research">
     Download competitor landing pages to analyze copywriting, layout, and CTAs
   </Card>
-  <Card title="Swipe File" icon="folder">
+  <Card icon="folder" title="Swipe File">
     Build an offline library of high-converting pages for creative inspiration
   </Card>
-  <Card title="Page Archival" icon="archive">
+  <Card icon="archive" title="Page Archival">
     Preserve landing pages before they're taken down or changed
   </Card>
-  <Card title="Template Customization" icon="palette">
+  <Card icon="palette" title="Template Customization">
     Download page structure and customize HTML/CSS for your own offers
   </Card>
 </CardGroup>
 
 ## Troubleshooting
-
-### "Landing page capture is unavailable"
-
-- **Cause:** Landing URL is a Meta platform (Facebook/Instagram)
-- **Solution:** Page Ripper only works for external public pages. Meta URLs require login and cannot be captured.
 
 ### "Page rip failed" (500 error)
 
@@ -196,7 +161,7 @@ The server validates every URL:
 - **Solution:** Wait for the time shown in the error message, then retry
 
 <Warning>
-If you repeatedly hit timeouts, the target site may be blocking headless browsers. Page Ripper cannot bypass anti-bot protections.
+  If you repeatedly hit timeouts, the target site may be blocking headless browsers. Page Ripper cannot bypass anti-bot protections.
 </Warning>
 
 ## Technical Limitations
@@ -209,10 +174,10 @@ If you repeatedly hit timeouts, the target site may be blocking headless browser
 ## Related Features
 
 <CardGroup cols={2}>
-  <Card title="Ad Feed" icon="table-list" href="/features/ad-feed">
+  <Card icon="table-list" href="/features/ad-feed" title="Ad Feed">
     Browse ads to find landing pages to rip
   </Card>
-  <Card title="Saved Ads" icon="bookmark" href="/features/saved-ads">
+  <Card icon="bookmark" href="/features/saved-ads" title="Saved Ads">
     Save ads before ripping their landing pages
   </Card>
 </CardGroup>

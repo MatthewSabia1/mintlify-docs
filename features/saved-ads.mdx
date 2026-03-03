@@ -1,7 +1,7 @@
 ---
-title: 'Saved Ads'
-description: 'Bookmark and organize ads for later reference and campaign planning'
-icon: 'bookmark'
+title: "Saved Ads"
+description: "Bookmark and organize ads for later reference and campaign planning"
+icon: "bookmark"
 ---
 
 ## Overview
@@ -22,7 +22,7 @@ There are two ways to save an ad:
 </Steps>
 
 <Info>
-Saved ads sync instantly across devices. Your collection is stored securely in the database and tied to your account.
+  Saved ads sync instantly across devices. Your collection is stored securely in the database and tied to your account.
 </Info>
 
 ## Viewing Saved Ads
@@ -60,7 +60,7 @@ Remove ads from your collection:
 </Steps>
 
 <Warning>
-Unsaving an ad removes it from ALL projects. If you only want to remove it from one project, use the project-specific remove action instead.
+  Unsaving an ad removes it from ALL projects. If you only want to remove it from one project, use the project-specific remove action instead.
 </Warning>
 
 ### Viewing Save Status
@@ -91,7 +91,7 @@ When viewing a saved ad:
 - Projects are listed in the save modal with checkboxes
 
 <Note>
-An ad must be saved before you can assign it to projects. Unsaving removes all project associations.
+  An ad must be saved before you can assign it to projects. Unsaving removes all project associations.
 </Note>
 
 ## Saved Collection Workflow
@@ -122,23 +122,8 @@ AdRecon provides a 5-second undo window for save/unsave actions:
 - After 5 seconds, the change persists to the database
 
 <Info>
-Pending actions show a spinner on the bookmark icon. You can queue multiple actions — they'll process sequentially.
+  Pending actions show a spinner on the bookmark icon. You can queue multiple actions — they'll process sequentially.
 </Info>
-
-## Data Persistence
-
-### What's Stored
-
-- **Ad reference** — Archive ID linking to the ad in the database
-- **User ID** — Your account identifier
-- **Timestamp** — When you saved the ad
-- **Project links** — Associations to your project folders
-
-### What's NOT Stored
-
-- Ad content is not duplicated — saved ads are references
-- Unsaved ads are removed from your collection but remain in the main feed
-- Deleting your account removes all saved ad records
 
 ## Limits & Quotas
 
@@ -148,17 +133,13 @@ Currently, there are no hard limits on:
 - Number of projects an ad can belong to
 - Saved collection size
 
-<Warning>
-If you save thousands of ads, the Saved feed may paginate more slowly. Consider organizing into projects for faster filtering.
-</Warning>
-
 ## Related Features
 
 <CardGroup cols={2}>
-  <Card title="Projects" icon="folder" href="/features/projects">
+  <Card icon="folder" href="/features/projects" title="Projects">
     Create folders to organize your saved ads
   </Card>
-  <Card title="Ad Feed" icon="table-list" href="/features/ad-feed">
+  <Card icon="table-list" href="/features/ad-feed" title="Ad Feed">
     Learn about the main ad browsing interface
   </Card>
 </CardGroup>
